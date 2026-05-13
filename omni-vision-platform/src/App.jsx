@@ -7,6 +7,7 @@ import {
   Sparkles, X, Loader2, PlayCircle, Film, Save, Camera, Plus, Trash2, Eye
 } from 'lucide-react';
 import { VideoPlayer } from './components/VideoRecorder';
+import { CameraViewer, CameraGridView } from './components/CameraViewer';
 import posService from './services/posIntegration';
 import cameraService from './services/cameraIntegration';
 import aiDetectionService from './services/aiDetection';
@@ -79,6 +80,7 @@ export default function App() {
   // Camera Configuration State
   const [cameras, setCameras] = useState([]);
   const [showAddCamera, setShowAddCamera] = useState(false);
+  const [selectedCamera, setSelectedCamera] = useState(null);
   const [newCamera, setNewCamera] = useState({
     name: '',
     type: 'webcam',
@@ -636,6 +638,22 @@ export default function App() {
               )}
             </button>
             <button
+              onClick={() => setActiveView(activeView === 'cameras' ? 'dashboard' : 'cameras')}
+              className={`w-full flex items-center px-4 py-3 rounded-xl transition-all duration-200 ${
+                activeView === 'cameras'
+                  ? 'bg-blue-500/10 text-blue-400 border border-blue-500/30 font-bold'
+                  : 'text-slate-400 hover:bg-slate-800 hover:text-slate-200'
+              }`}
+            >
+              <Camera className={`w-5 h-5 mr-3 ${activeView === 'cameras' ? 'text-blue-400' : 'text-slate-500'}`} />
+              <span>Live Cameras</span>
+              {cameras.filter(c => c.status === 'online').length > 0 && (
+                <span className="ml-auto bg-emerald-500 text-white text-xs px-2 py-0.5 rounded-full">
+                  {cameras.filter(c => c.status === 'online').length}
+                </span>
+              )}
+            </button>
+            <button
               onClick={() => setActiveView(activeView === 'settings' ? 'dashboard' : 'settings')}
               className={`w-full flex items-center px-4 py-3 rounded-xl transition-all duration-200 ${
                 activeView === 'settings'
@@ -692,7 +710,45 @@ export default function App() {
         </header>
 
         <div className="flex-1 overflow-auto p-8 relative">
-          {activeView === 'settings' ? (
+          {activeView === 'cameras' ? (
+            <div className="space-y-6">
+              <div className="flex items-center justify-between">
+                <h2 className="text-2xl font-bold text-white">Live Camera Feeds</h2>
+                <div className="flex items-center gap-2">
+                  <span className="text-sm text-slate-400">
+                    {cameras.filter(c => c.status === 'online').length} of {cameras.length} online
+                  </span>
+                  <button
+                    onClick={() => setActiveView('settings')}
+                    className="px-4 py-2 bg-blue-500/10 hover:bg-blue-500/20 text-blue-400 rounded-lg border border-blue-500/30 transition-colors text-sm font-semibold"
+                  >
+                    <Settings className="w-4 h-4 inline mr-2" />
+                    Manage Cameras
+                  </button>
+                </div>
+              </div>
+
+              {cameras.length > 0 ? (
+                <CameraGridView 
+                  cameras={cameras}
+                  onSelectCamera={(camera) => setSelectedCamera(camera)}
+                />
+              ) : (
+                <div className="text-center py-16">
+                  <Camera className="w-16 h-16 text-slate-600 mx-auto mb-4" />
+                  <h3 className="text-lg font-semibold text-white mb-2">No Cameras Configured</h3>
+                  <p className="text-slate-400 mb-6">Add your first camera to start monitoring</p>
+                  <button
+                    onClick={() => setActiveView('settings')}
+                    className="px-6 py-3 bg-blue-500/10 hover:bg-blue-500/20 text-blue-400 rounded-lg border border-blue-500/30 transition-colors font-semibold inline-flex items-center gap-2"
+                  >
+                    <Plus className="w-5 h-5" />
+                    Add Camera
+                  </button>
+                </div>
+              )}
+            </div>
+          ) : activeView === 'settings' ? (
             <div className="space-y-6 max-w-4xl">
               <h2 className="text-2xl font-bold text-white">System Settings</h2>
               
@@ -1224,6 +1280,14 @@ export default function App() {
             updateClipStatus(selectedClip.id, 'Flagged');
             setSelectedClip(null);
           }}
+        />
+      )}
+
+      {/* Camera Viewer Modal */}
+      {selectedCamera && (
+        <CameraViewer 
+          camera={selectedCamera}
+          onClose={() => setSelectedCamera(null)}
         />
       )}
     </div>

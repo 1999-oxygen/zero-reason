@@ -22,6 +22,9 @@ class POSIntegrationService {
       case 'square':
         this.baseURL = 'https://connect.squareup.com/v2';
         break;
+      case 'mock':
+        this.baseURL = null; // Mock mode doesn't need API
+        break;
       default:
         throw new Error('Unsupported POS type');
     }

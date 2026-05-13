@@ -1,11 +1,15 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { 
   Store, Utensils, ShieldAlert, GraduationCap, Tractor,
   Video, Bell, Search, AlertTriangle, CheckCircle, Clock,
   Activity, Settings, Users, ArrowRight, Map, HeartPulse,
   BrainCircuit, LayoutDashboard, Fingerprint, DoorOpen, Coffee,
-  Sparkles, X, Loader2
+  Sparkles, X, Loader2, PlayCircle, Film, Save, Camera, Plus, Trash2, Eye
 } from 'lucide-react';
+import { VideoPlayer } from './components/VideoRecorder';
+import posService from './services/posIntegration';
+import cameraService from './services/cameraIntegration';
+import aiDetectionService from './services/aiDetection';
 
 // --- GEMINI API INTEGRATION ---
 const apiKey = ""; // Supplied by the execution environment
@@ -59,6 +63,7 @@ const formatLLMText = (text) => {
 
 export default function App() {
   const [activeModule, setActiveModule] = useState('retail');
+  const [activeView, setActiveView] = useState('dashboard'); // 'dashboard' or 'clips'
   const [isSimulating, setIsSimulating] = useState(true);
 
   // LLM Modal State
@@ -66,6 +71,45 @@ export default function App() {
   const [llmTitle, setLlmTitle] = useState("");
   const [llmContent, setLlmContent] = useState("");
   const [isLlmLoading, setIsLlmLoading] = useState(false);
+
+  // Video Clips State
+  const [videoClips, setVideoClips] = useState([]);
+  const [selectedClip, setSelectedClip] = useState(null);
+  const [isRecording, setIsRecording] = useState(false);
+  const mediaRecorderRef = useRef(null);
+  const streamRef = useRef(null);
+
+  // POS Configuration State
+  const [posConfig, setPosConfig] = useState({
+    type: 'mock', // 'loyverse', 'square', or 'mock'
+    apiKey: '',
+    storeId: ''
+  });
+  const [posTransactions, setPosTransactions] = useState([]);
+  const [posStats, setPosStats] = useState(null);
+
+  // Camera Configuration State
+  const [cameras, setCameras] = useState([]);
+  const [showAddCamera, setShowAddCamera] = useState(false);
+  const [newCamera, setNewCamera] = useState({
+    name: '',
+    type: 'webcam',
+    url: '',
+    location: '',
+    module: 'retail',
+    phoneIP: '',
+    phonePort: '8080',
+    phoneApp: 'ipwebcam'
+  });
+
+  // AI Detection State
+  const [aiConfig, setAiConfig] = useState({
+    enablePoseDetection: true,
+    enableObjectDetection: true,
+    confidenceThreshold: 0.6,
+    autoRecordSuspicious: true
+  });
+  const [aiInitialized, setAiInitialized] = useState(false);
 
   // Define the different industry modules
   const modules = [
@@ -118,6 +162,247 @@ export default function App() {
     const text = await callGeminiAPI(prompt);
     setLlmContent(text);
     setIsLlmLoading(false);
+  };
+
+  // --- VIDEO RECORDING HANDLERS ---
+  useEffect(() => {
+    // Initialize camera on mount
+    initializeCamera();
+    // Simulate recording clips for demo
+    simulateExistingClips();
+    // Initialize POS system
+    initializePOS();
+    // Initialize cameras
+    initializeCameras();
+    // Initialize AI Detection
+    initializeAI();
+    
+    return () => {
+      if (streamRef.current) {
+        streamRef.current.getTracks().forEach(track => track.stop());
+      }
+    };
+  }, []);
+
+  // Refresh POS data when config changes
+  useEffect(() => {
+    if (posConfig.type) {
+      initializePOS();
+    }
+  }, [posConfig]);
+
+  const initializeCamera = async () => {
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({
+        video: { width: 1280, height: 720 },
+        audio: true
+      });
+      streamRef.current = stream;
+    } catch (error) {
+      console.log('Camera access not available, using simulation mode');
+    }
+  };
+
+  const simulateExistingClips = () => {
+    // Add some demo clips
+    const demoClips = [
+      {
+        id: 'clip_001',
+        url: 'https://www.w3schools.com/html/mov_bbb.mp4',
+        timestamp: new Date(Date.now() - 3600000).toISOString(),
+        title: 'THEFT SUSPICION',
+        description: 'Subject moving to exit without POS scan',
+        module: 'retail',
+        status: 'Suspicious',
+        duration: 15
+      },
+      {
+        id: 'clip_002',
+        url: 'https://www.w3schools.com/html/movie.mp4',
+        timestamp: new Date(Date.now() - 7200000).toISOString(),
+        title: 'Dine & Dash Alert',
+        description: 'Guest exited without payment verification',
+        module: 'hospitality',
+        status: 'Suspicious',
+        duration: 15
+      }
+    ];
+    setVideoClips(demoClips);
+  };
+
+  const recordSuspiciousEvent = async (eventData) => {
+    if (!streamRef.current) {
+      console.log('No camera stream available');
+      return;
+    }
+
+    setIsRecording(true);
+    const chunks = [];
+    
+    const mediaRecorder = new MediaRecorder(streamRef.current, {
+      mimeType: 'video/webm;codecs=vp9'
+    });
+
+    mediaRecorder.ondataavailable = (event) => {
+      if (event.data.size > 0) {
+        chunks.push(event.data);
+      }
+    };
+
+    mediaRecorder.onstop = () => {
+      const blob = new Blob(chunks, { type: 'video/webm' });
+      const url = URL.createObjectURL(blob);
+      
+      const newClip = {
+        id: `clip_${Date.now()}`,
+        url,
+        blob,
+        timestamp: new Date().toISOString(),
+        title: eventData.title || 'Suspicious Activity',
+        description: eventData.description || 'Automated recording',
+        module: activeModule,
+        status: 'Suspicious',
+        duration: 15
+      };
+
+      setVideoClips(prev => [newClip, ...prev]);
+      setIsRecording(false);
+    };
+
+    mediaRecorder.start();
+    mediaRecorderRef.current = mediaRecorder;
+
+    // Auto-stop after 15 seconds
+    setTimeout(() => {
+      if (mediaRecorderRef.current && mediaRecorderRef.current.state === 'recording') {
+        mediaRecorderRef.current.stop();
+      }
+    }, 15000);
+  };
+
+  const updateClipStatus = (clipId, newStatus) => {
+    setVideoClips(prev =>
+      prev.map(clip =>
+        clip.id === clipId ? { ...clip, status: newStatus } : clip
+      )
+    );
+  };
+
+  // --- POS INTEGRATION HANDLERS ---
+  const initializePOS = async () => {
+    try {
+      posService.initialize({
+        type: posConfig.type,
+        apiKey: posConfig.apiKey,
+        storeId: posConfig.storeId
+      });
+
+      // Fetch recent transactions
+      const transactions = await posService.getRecentTransactions(20);
+      setPosTransactions(transactions);
+
+      // Get sales statistics
+      const stats = await posService.getSalesStats();
+      setPosStats(stats);
+    } catch (error) {
+      console.error('Error initializing POS:', error);
+    }
+  };
+
+  const savePOSConfig = (newConfig) => {
+    setPosConfig(newConfig);
+    localStorage.setItem('posConfig', JSON.stringify(newConfig));
+  };
+
+  const verifyItemWithPOS = async (itemName) => {
+    const result = await posService.verifyItemScanned(itemName);
+    return result;
+  };
+
+  // --- CAMERA MANAGEMENT HANDLERS ---
+  const initializeCameras = () => {
+    // Load mock cameras for demo
+    const mockCameras = cameraService.getMockCameras();
+    setCameras(mockCameras);
+  };
+
+  const handleAddCamera = () => {
+    let camera;
+    
+    switch (newCamera.type) {
+      case 'webcam':
+        camera = cameraService.addCamera({
+          name: newCamera.name,
+          type: 'webcam',
+          location: newCamera.location,
+          module: newCamera.module
+        });
+        break;
+        
+      case 'ip':
+        camera = cameraService.addCamera({
+          name: newCamera.name,
+          type: 'ip',
+          url: newCamera.url,
+          location: newCamera.location,
+          module: newCamera.module
+        });
+        break;
+        
+      case 'phone':
+        const phoneUrl = `http://${newCamera.phoneIP}:${newCamera.phonePort}/video`;
+        camera = cameraService.addCamera({
+          name: newCamera.name,
+          type: 'phone',
+          url: phoneUrl,
+          location: newCamera.location,
+          module: newCamera.module
+        });
+        break;
+    }
+
+    if (camera) {
+      setCameras([...cameras, camera]);
+      setShowAddCamera(false);
+      setNewCamera({
+        name: '',
+        type: 'webcam',
+        url: '',
+        location: '',
+        module: 'retail',
+        phoneIP: '',
+        phonePort: '8080',
+        phoneApp: 'ipwebcam'
+      });
+    }
+  };
+
+  const handleRemoveCamera = (cameraId) => {
+    cameraService.removeCamera(cameraId);
+    setCameras(cameras.filter(c => c.id !== cameraId));
+  };
+
+  const testCameraConnection = async (cameraId) => {
+    const result = await cameraService.testConnection(cameraId);
+    alert(result.success ? result.message : `Error: ${result.error}`);
+  };
+
+  // --- AI DETECTION HANDLERS ---
+  const initializeAI = async () => {
+    try {
+      const initialized = await aiDetectionService.initialize(aiConfig);
+      setAiInitialized(initialized);
+      console.log('AI Detection initialized:', initialized);
+    } catch (error) {
+      console.error('Error initializing AI:', error);
+    }
+  };
+
+  const saveAIConfig = (newConfig) => {
+    setAiConfig(newConfig);
+    localStorage.setItem('aiConfig', JSON.stringify(newConfig));
+    // Reinitialize AI with new config
+    aiDetectionService.initialize(newConfig);
   };
 
   // Simulated Data for different modules
@@ -343,6 +628,39 @@ export default function App() {
           </nav>
         </div>
 
+        <div className="px-4 py-2 border-t border-slate-800">
+          <p className="text-[10px] uppercase font-bold text-slate-500 mb-2 tracking-wider">Quick Access</p>
+          <div className="space-y-2">
+            <button
+              onClick={() => setActiveView(activeView === 'clips' ? 'dashboard' : 'clips')}
+              className={`w-full flex items-center px-4 py-3 rounded-xl transition-all duration-200 ${
+                activeView === 'clips'
+                  ? 'bg-red-500/10 text-red-400 border border-red-500/30 font-bold'
+                  : 'text-slate-400 hover:bg-slate-800 hover:text-slate-200'
+              }`}
+            >
+              <Film className={`w-5 h-5 mr-3 ${activeView === 'clips' ? 'text-red-400' : 'text-slate-500'}`} />
+              <span>Video Clips</span>
+              {videoClips.filter(c => c.status === 'Suspicious').length > 0 && (
+                <span className="ml-auto bg-red-500 text-white text-xs px-2 py-0.5 rounded-full">
+                  {videoClips.filter(c => c.status === 'Suspicious').length}
+                </span>
+              )}
+            </button>
+            <button
+              onClick={() => setActiveView(activeView === 'settings' ? 'dashboard' : 'settings')}
+              className={`w-full flex items-center px-4 py-3 rounded-xl transition-all duration-200 ${
+                activeView === 'settings'
+                  ? 'bg-slate-500/10 text-slate-200 border border-slate-500/30 font-bold'
+                  : 'text-slate-400 hover:bg-slate-800 hover:text-slate-200'
+              }`}
+            >
+              <Settings className={`w-5 h-5 mr-3 ${activeView === 'settings' ? 'text-slate-200' : 'text-slate-500'}`} />
+              <span>Settings</span>
+            </button>
+          </div>
+        </div>
+
         <div className="mt-auto p-4 border-t border-slate-800">
           <div className="bg-slate-950 p-4 rounded-xl border border-slate-800">
             <div className="flex items-center text-xs text-slate-400 mb-2">
@@ -385,7 +703,490 @@ export default function App() {
           </div>
         </header>
 
-        <div className="flex-1 overflow-auto p-8 relative">{renderModuleContent()}</div>
+        <div className="flex-1 overflow-auto p-8 relative">
+          {activeView === 'settings' ? (
+            <div className="space-y-6 max-w-4xl">
+              <h2 className="text-2xl font-bold text-white">System Settings</h2>
+              
+              {/* POS Integration Settings */}
+              <div className="bg-slate-900 rounded-xl border border-slate-800 p-6">
+                <h3 className="text-lg font-semibold text-white mb-4">POS Integration</h3>
+                <div className="space-y-4">
+                  <div>
+                    <label className="block text-sm font-medium text-slate-300 mb-2">POS System</label>
+                    <select
+                      value={posConfig.type}
+                      onChange={(e) => setPosConfig({ ...posConfig, type: e.target.value })}
+                      className="w-full px-4 py-2 bg-slate-950 border border-slate-700 rounded-lg text-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    >
+                      <option value="mock">Demo / Mock Data</option>
+                      <option value="loyverse">Loyverse</option>
+                      <option value="square">Square</option>
+                    </select>
+                  </div>
+                  
+                  {posConfig.type !== 'mock' && (
+                    <>
+                      <div>
+                        <label className="block text-sm font-medium text-slate-300 mb-2">API Key</label>
+                        <input
+                          type="password"
+                          value={posConfig.apiKey}
+                          onChange={(e) => setPosConfig({ ...posConfig, apiKey: e.target.value })}
+                          placeholder="Enter your API key"
+                          className="w-full px-4 py-2 bg-slate-950 border border-slate-700 rounded-lg text-slate-200 placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium text-slate-300 mb-2">Store ID</label>
+                        <input
+                          type="text"
+                          value={posConfig.storeId}
+                          onChange={(e) => setPosConfig({ ...posConfig, storeId: e.target.value })}
+                          placeholder="Enter your store ID"
+                          className="w-full px-4 py-2 bg-slate-950 border border-slate-700 rounded-lg text-slate-200 placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        />
+                      </div>
+                    </>
+                  )}
+                  
+                  <button
+                    onClick={() => savePOSConfig(posConfig)}
+                    className="flex items-center px-6 py-2 bg-blue-500/10 hover:bg-blue-500/20 text-blue-400 rounded-lg border border-blue-500/30 transition-colors font-semibold"
+                  >
+                    <Save className="w-4 h-4 mr-2" />
+                    Save Configuration
+                  </button>
+                </div>
+              </div>
+
+              {/* POS Statistics */}
+              {posStats && (
+                <div className="bg-slate-900 rounded-xl border border-slate-800 p-6">
+                  <h3 className="text-lg font-semibold text-white mb-4">POS Statistics (Last Hour)</h3>
+                  <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                    <div className="bg-slate-950 p-4 rounded-lg">
+                      <p className="text-xs text-slate-400 uppercase mb-1">Transactions</p>
+                      <p className="text-2xl font-bold text-white">{posStats.totalTransactions}</p>
+                    </div>
+                    <div className="bg-slate-950 p-4 rounded-lg">
+                      <p className="text-xs text-slate-400 uppercase mb-1">Revenue</p>
+                      <p className="text-2xl font-bold text-emerald-400">${posStats.totalRevenue.toFixed(2)}</p>
+                    </div>
+                    <div className="bg-slate-950 p-4 rounded-lg">
+                      <p className="text-xs text-slate-400 uppercase mb-1">Avg Transaction</p>
+                      <p className="text-2xl font-bold text-blue-400">${posStats.averageTransaction.toFixed(2)}</p>
+                    </div>
+                    <div className="bg-slate-950 p-4 rounded-lg">
+                      <p className="text-xs text-slate-400 uppercase mb-1">Top Employee</p>
+                      <p className="text-sm font-bold text-purple-400">{posStats.topEmployee.name}</p>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* Recent Transactions */}
+              {posTransactions.length > 0 && (
+                <div className="bg-slate-900 rounded-xl border border-slate-800 p-6">
+                  <h3 className="text-lg font-semibold text-white mb-4">Recent Transactions</h3>
+                  <div className="space-y-2 max-h-96 overflow-y-auto">
+                    {posTransactions.map((transaction) => (
+                      <div key={transaction.id} className="bg-slate-950 p-4 rounded-lg border border-slate-800">
+                        <div className="flex justify-between items-start mb-2">
+                          <div>
+                            <p className="font-semibold text-white">#{transaction.id}</p>
+                            <p className="text-xs text-slate-400">{new Date(transaction.timestamp).toLocaleString()}</p>
+                          </div>
+                          <div className="text-right">
+                            <p className="font-bold text-emerald-400">${transaction.total.toFixed(2)}</p>
+                            <p className="text-xs text-slate-400">{transaction.employee}</p>
+                          </div>
+                        </div>
+                        <div className="space-y-1">
+                          {transaction.items.map((item, idx) => (
+                            <div key={idx} className="text-xs text-slate-300 flex justify-between">
+                              <span>{item.quantity}x {item.name}</span>
+                              <span className="text-slate-400">${item.price.toFixed(2)}</span>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Camera Management */}
+              <div className="bg-slate-900 rounded-xl border border-slate-800 p-6">
+                <div className="flex items-center justify-between mb-4">
+                  <h3 className="text-lg font-semibold text-white">Camera Management</h3>
+                  <button
+                    onClick={() => setShowAddCamera(!showAddCamera)}
+                    className="flex items-center px-4 py-2 bg-blue-500/10 hover:bg-blue-500/20 text-blue-400 rounded-lg border border-blue-500/30 transition-colors font-semibold"
+                  >
+                    <Plus className="w-4 h-4 mr-2" />
+                    Add Camera
+                  </button>
+                </div>
+
+                {/* Add Camera Form */}
+                {showAddCamera && (
+                  <div className="mb-6 p-4 bg-slate-950 rounded-lg border border-slate-700">
+                    <h4 className="text-sm font-semibold text-slate-300 mb-3">New Camera Configuration</h4>
+                    <div className="space-y-3">
+                      <div className="grid grid-cols-2 gap-3">
+                        <div>
+                          <label className="block text-xs text-slate-400 mb-1">Camera Name</label>
+                          <input
+                            type="text"
+                            value={newCamera.name}
+                            onChange={(e) => setNewCamera({ ...newCamera, name: e.target.value })}
+                            placeholder="e.g., Front Counter"
+                            className="w-full px-3 py-2 bg-slate-900 border border-slate-700 rounded text-slate-200 text-sm"
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-xs text-slate-400 mb-1">Camera Type</label>
+                          <select
+                            value={newCamera.type}
+                            onChange={(e) => setNewCamera({ ...newCamera, type: e.target.value })}
+                            className="w-full px-3 py-2 bg-slate-900 border border-slate-700 rounded text-slate-200 text-sm"
+                          >
+                            <option value="webcam">Webcam</option>
+                            <option value="ip">IP Camera</option>
+                            <option value="phone">Phone Camera</option>
+                          </select>
+                        </div>
+                      </div>
+
+                      {newCamera.type === 'ip' && (
+                        <div>
+                          <label className="block text-xs text-slate-400 mb-1">Camera URL</label>
+                          <input
+                            type="text"
+                            value={newCamera.url}
+                            onChange={(e) => setNewCamera({ ...newCamera, url: e.target.value })}
+                            placeholder="http://192.168.1.100:8080/video"
+                            className="w-full px-3 py-2 bg-slate-900 border border-slate-700 rounded text-slate-200 text-sm"
+                          />
+                        </div>
+                      )}
+
+                      {newCamera.type === 'phone' && (
+                        <div className="grid grid-cols-3 gap-3">
+                          <div>
+                            <label className="block text-xs text-slate-400 mb-1">Phone IP</label>
+                            <input
+                              type="text"
+                              value={newCamera.phoneIP}
+                              onChange={(e) => setNewCamera({ ...newCamera, phoneIP: e.target.value })}
+                              placeholder="192.168.1.50"
+                              className="w-full px-3 py-2 bg-slate-900 border border-slate-700 rounded text-slate-200 text-sm"
+                            />
+                          </div>
+                          <div>
+                            <label className="block text-xs text-slate-400 mb-1">Port</label>
+                            <input
+                              type="text"
+                              value={newCamera.phonePort}
+                              onChange={(e) => setNewCamera({ ...newCamera, phonePort: e.target.value })}
+                              placeholder="8080"
+                              className="w-full px-3 py-2 bg-slate-900 border border-slate-700 rounded text-slate-200 text-sm"
+                            />
+                          </div>
+                          <div>
+                            <label className="block text-xs text-slate-400 mb-1">App</label>
+                            <select
+                              value={newCamera.phoneApp}
+                              onChange={(e) => setNewCamera({ ...newCamera, phoneApp: e.target.value })}
+                              className="w-full px-3 py-2 bg-slate-900 border border-slate-700 rounded text-slate-200 text-sm"
+                            >
+                              <option value="ipwebcam">IP Webcam</option>
+                              <option value="droidcam">DroidCam</option>
+                              <option value="iriun">Iriun</option>
+                            </select>
+                          </div>
+                        </div>
+                      )}
+
+                      <div className="grid grid-cols-2 gap-3">
+                        <div>
+                          <label className="block text-xs text-slate-400 mb-1">Location</label>
+                          <input
+                            type="text"
+                            value={newCamera.location}
+                            onChange={(e) => setNewCamera({ ...newCamera, location: e.target.value })}
+                            placeholder="e.g., Main Store"
+                            className="w-full px-3 py-2 bg-slate-900 border border-slate-700 rounded text-slate-200 text-sm"
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-xs text-slate-400 mb-1">AI Module</label>
+                          <select
+                            value={newCamera.module}
+                            onChange={(e) => setNewCamera({ ...newCamera, module: e.target.value })}
+                            className="w-full px-3 py-2 bg-slate-900 border border-slate-700 rounded text-slate-200 text-sm"
+                          >
+                            <option value="retail">Retail & Shoes</option>
+                            <option value="hospitality">Hotels & Dining</option>
+                            <option value="security">Facility Security</option>
+                            <option value="education">Education & Wellness</option>
+                            <option value="agriculture">Livestock & Farms</option>
+                          </select>
+                        </div>
+                      </div>
+
+                      <div className="flex justify-end gap-2 pt-2">
+                        <button
+                          onClick={() => setShowAddCamera(false)}
+                          className="px-4 py-2 text-slate-400 hover:text-slate-200 text-sm"
+                        >
+                          Cancel
+                        </button>
+                        <button
+                          onClick={handleAddCamera}
+                          className="px-4 py-2 bg-blue-500/10 hover:bg-blue-500/20 text-blue-400 rounded-lg border border-blue-500/30 text-sm font-semibold"
+                        >
+                          Add Camera
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                {/* Camera List */}
+                <div className="space-y-2">
+                  {cameras.map((camera) => (
+                    <div key={camera.id} className="bg-slate-950 p-4 rounded-lg border border-slate-800 flex items-center justify-between">
+                      <div className="flex items-center gap-4">
+                        <div className={`w-10 h-10 rounded-lg flex items-center justify-center ${
+                          camera.status === 'online' ? 'bg-emerald-500/10 border border-emerald-500/30' :
+                          camera.status === 'error' ? 'bg-red-500/10 border border-red-500/30' :
+                          'bg-slate-500/10 border border-slate-500/30'
+                        }`}>
+                          <Camera className={`w-5 h-5 ${
+                            camera.status === 'online' ? 'text-emerald-400' :
+                            camera.status === 'error' ? 'text-red-400' :
+                            'text-slate-400'
+                          }`} />
+                        </div>
+                        <div>
+                          <h4 className="font-semibold text-white">{camera.name}</h4>
+                          <div className="flex items-center gap-3 text-xs text-slate-400">
+                            <span className="capitalize">{camera.type}</span>
+                            <span>•</span>
+                            <span>{camera.location}</span>
+                            <span>•</span>
+                            <span className="capitalize">{camera.module}</span>
+                            <span>•</span>
+                            <span className={`font-semibold ${
+                              camera.status === 'online' ? 'text-emerald-400' :
+                              camera.status === 'error' ? 'text-red-400' :
+                              'text-slate-500'
+                            }`}>
+                              {camera.status}
+                            </span>
+                          </div>
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <button
+                          onClick={() => testCameraConnection(camera.id)}
+                          className="p-2 hover:bg-slate-800 rounded-lg transition-colors"
+                          title="Test Connection"
+                        >
+                          <Eye className="w-4 h-4 text-slate-400" />
+                        </button>
+                        <button
+                          onClick={() => handleRemoveCamera(camera.id)}
+                          className="p-2 hover:bg-red-500/10 rounded-lg transition-colors"
+                          title="Remove Camera"
+                        >
+                          <Trash2 className="w-4 h-4 text-red-400" />
+                        </button>
+                      </div>
+                    </div>
+                  ))}
+                  {cameras.length === 0 && (
+                    <div className="text-center py-8 text-slate-500">
+                      <Camera className="w-12 h-12 mx-auto mb-2 opacity-50" />
+                      <p className="text-sm">No cameras configured yet</p>
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              {/* AI Detection Configuration */}
+              <div className="bg-slate-900 rounded-xl border border-slate-800 p-6">
+                <div className="flex items-center justify-between mb-4">
+                  <div>
+                    <h3 className="text-lg font-semibold text-white">AI Detection Settings</h3>
+                    <p className="text-xs text-slate-400 mt-1">
+                      Status: <span className={`font-semibold ${aiInitialized ? 'text-emerald-400' : 'text-red-400'}`}>
+                        {aiInitialized ? 'Active' : 'Inactive'}
+                      </span>
+                    </p>
+                  </div>
+                </div>
+
+                <div className="space-y-4">
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="flex items-center justify-between p-4 bg-slate-950 rounded-lg border border-slate-800">
+                      <div>
+                        <label className="text-sm font-medium text-slate-300">Pose Detection</label>
+                        <p className="text-xs text-slate-500 mt-1">Analyze body movements</p>
+                      </div>
+                      <label className="relative inline-flex items-center cursor-pointer">
+                        <input
+                          type="checkbox"
+                          checked={aiConfig.enablePoseDetection}
+                          onChange={(e) => setAiConfig({ ...aiConfig, enablePoseDetection: e.target.checked })}
+                          className="sr-only peer"
+                        />
+                        <div className="w-11 h-6 bg-slate-700 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-500"></div>
+                      </label>
+                    </div>
+
+                    <div className="flex items-center justify-between p-4 bg-slate-950 rounded-lg border border-slate-800">
+                      <div>
+                        <label className="text-sm font-medium text-slate-300">Object Detection</label>
+                        <p className="text-xs text-slate-500 mt-1">Identify items & products</p>
+                      </div>
+                      <label className="relative inline-flex items-center cursor-pointer">
+                        <input
+                          type="checkbox"
+                          checked={aiConfig.enableObjectDetection}
+                          onChange={(e) => setAiConfig({ ...aiConfig, enableObjectDetection: e.target.checked })}
+                          className="sr-only peer"
+                        />
+                        <div className="w-11 h-6 bg-slate-700 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-500"></div>
+                      </label>
+                    </div>
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-slate-300 mb-2">
+                      Confidence Threshold: {(aiConfig.confidenceThreshold * 100).toFixed(0)}%
+                    </label>
+                    <input
+                      type="range"
+                      min="0"
+                      max="1"
+                      step="0.05"
+                      value={aiConfig.confidenceThreshold}
+                      onChange={(e) => setAiConfig({ ...aiConfig, confidenceThreshold: parseFloat(e.target.value) })}
+                      className="w-full h-2 bg-slate-700 rounded-lg appearance-none cursor-pointer accent-blue-500"
+                    />
+                    <div className="flex justify-between text-xs text-slate-500 mt-1">
+                      <span>More detections</span>
+                      <span>Higher accuracy</span>
+                    </div>
+                  </div>
+
+                  <div className="flex items-center justify-between p-4 bg-slate-950 rounded-lg border border-slate-800">
+                    <div>
+                      <label className="text-sm font-medium text-slate-300">Auto-Record Suspicious Events</label>
+                      <p className="text-xs text-slate-500 mt-1">Automatically capture video clips</p>
+                    </div>
+                    <label className="relative inline-flex items-center cursor-pointer">
+                      <input
+                        type="checkbox"
+                        checked={aiConfig.autoRecordSuspicious}
+                        onChange={(e) => setAiConfig({ ...aiConfig, autoRecordSuspicious: e.target.checked })}
+                        className="sr-only peer"
+                      />
+                      <div className="w-11 h-6 bg-slate-700 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-500"></div>
+                    </label>
+                  </div>
+
+                  <button
+                    onClick={() => saveAIConfig(aiConfig)}
+                    className="w-full flex items-center justify-center px-6 py-3 bg-blue-500/10 hover:bg-blue-500/20 text-blue-400 rounded-lg border border-blue-500/30 transition-colors font-semibold"
+                  >
+                    <Save className="w-4 h-4 mr-2" />
+                    Save AI Configuration
+                  </button>
+                </div>
+              </div>
+            </div>
+          ) : activeView === 'clips' ? (
+            <div className="space-y-6">
+              <div className="flex items-center justify-between">
+                <h2 className="text-2xl font-bold text-white">Recorded Incident Clips</h2>
+                {isRecording && (
+                  <div className="flex items-center px-4 py-2 bg-red-500/20 text-red-400 rounded-lg border border-red-500/30">
+                    <div className="w-2 h-2 bg-red-500 rounded-full animate-pulse mr-2"></div>
+                    Recording...
+                  </div>
+                )}
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                {videoClips.map((clip) => (
+                  <div
+                    key={clip.id}
+                    className="bg-slate-900 rounded-xl border border-slate-800 overflow-hidden hover:border-slate-700 transition-all group cursor-pointer"
+                    onClick={() => setSelectedClip(clip)}
+                  >
+                    <div className="relative aspect-video bg-slate-950 overflow-hidden">
+                      <video src={clip.url} className="w-full h-full object-cover" />
+                      <div className="absolute inset-0 bg-gradient-to-t from-slate-950 via-transparent to-transparent opacity-60"></div>
+                      <button className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
+                        <div className="w-16 h-16 bg-white/20 backdrop-blur-sm rounded-full flex items-center justify-center">
+                          <PlayCircle className="w-10 h-10 text-white" />
+                        </div>
+                      </button>
+                      <div className={`absolute top-2 right-2 px-2 py-1 rounded-lg text-xs font-bold ${
+                        clip.status === 'Suspicious' ? 'bg-red-500/90 text-white' : 
+                        clip.status === 'Verified' ? 'bg-emerald-500/90 text-white' : 
+                        'bg-slate-500/90 text-white'
+                      }`}>
+                        {clip.status}
+                      </div>
+                    </div>
+                    <div className="p-4">
+                      <h3 className="font-semibold text-white mb-1">{clip.title}</h3>
+                      <p className="text-sm text-slate-400 mb-2">{clip.description}</p>
+                      <div className="flex items-center justify-between text-xs text-slate-500">
+                        <span>{new Date(clip.timestamp).toLocaleString()}</span>
+                        <span className="capitalize">{clip.module}</span>
+                      </div>
+                      <div className="mt-3 flex gap-2">
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            updateClipStatus(clip.id, 'Verified');
+                          }}
+                          className="flex-1 px-3 py-1.5 bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-400 rounded-lg text-xs font-medium transition-colors"
+                        >
+                          Verify
+                        </button>
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            updateClipStatus(clip.id, 'Flagged');
+                          }}
+                          className="flex-1 px-3 py-1.5 bg-red-500/10 hover:bg-red-500/20 text-red-400 rounded-lg text-xs font-medium transition-colors"
+                        >
+                          Flag
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+
+              {videoClips.length === 0 && (
+                <div className="text-center py-20">
+                  <Film className="w-16 h-16 text-slate-600 mx-auto mb-4" />
+                  <p className="text-slate-400">No recorded clips yet</p>
+                </div>
+              )}
+            </div>
+          ) : (
+            renderModuleContent()
+          )}
+        </div>
       </main>
 
       {/* --- GEMINI LLM MODAL OVERLAY --- */}
@@ -420,6 +1221,22 @@ export default function App() {
             </div>
           </div>
         </div>
+      )}
+
+      {/* Video Player Modal */}
+      {selectedClip && (
+        <VideoPlayer 
+          clip={selectedClip} 
+          onClose={() => setSelectedClip(null)}
+          onVerify={() => {
+            updateClipStatus(selectedClip.id, 'Verified');
+            setSelectedClip(null);
+          }}
+          onFlag={() => {
+            updateClipStatus(selectedClip.id, 'Flagged');
+            setSelectedClip(null);
+          }}
+        />
       )}
     </div>
   );

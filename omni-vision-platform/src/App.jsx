@@ -11,36 +11,24 @@ import posService from './services/posIntegration';
 import cameraService from './services/cameraIntegration';
 import aiDetectionService from './services/aiDetection';
 
-// --- GEMINI API INTEGRATION ---
-const apiKey = ""; // Supplied by the execution environment
-
+// --- AI API INTEGRATION (via Netlify Function) ---
 const callGeminiAPI = async (prompt) => {
-  const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-09-2025:generateContent?key=${apiKey}`;
-  const payload = {
-    contents: [{ parts: [{ text: prompt }] }]
-  };
+  try {
+    const response = await fetch('/.netlify/functions/ai-report', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ prompt })
+    });
 
-  let retries = 5;
-  let delay = 1000;
-  
-  while (retries > 0) {
-    try {
-      const res = await fetch(url, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(payload)
-      });
-      if (!res.ok) throw new Error(`HTTP error! status: ${res.status}`);
-      const data = await res.json();
-      return data.candidates?.[0]?.content?.parts?.[0]?.text || "No insights generated.";
-    } catch (error) {
-      retries--;
-      if (retries === 0) {
-        return "Failed to generate AI insights after multiple attempts. Please try again later or check your network connection.";
-      }
-      await new Promise(r => setTimeout(r, delay));
-      delay *= 2; // Exponential backoff: 1s, 2s, 4s, 8s, 16s
+    if (!response.ok) {
+      throw new Error(`Function error: ${response.status}`);
     }
+
+    const data = await response.json();
+    return data.text || "No insights generated.";
+  } catch (error) {
+    console.error('AI Report Error:', error);
+    return "Failed to generate AI insights. Please try again later.";
   }
 };
 

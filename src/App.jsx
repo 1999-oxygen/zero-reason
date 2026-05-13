@@ -942,12 +942,25 @@ export default function App() {
                             <label className="block text-xs text-slate-400 mb-1">App</label>
                             <select
                               value={newCamera.phoneApp}
-                              onChange={(e) => setNewCamera({ ...newCamera, phoneApp: e.target.value })}
+                              onChange={(e) => {
+                                const app = e.target.value;
+                                // Auto-set correct port based on app
+                                const portMap = {
+                                  'ipwebcam': '8080',
+                                  'droidcam': '4747',
+                                  'iriun': '8080'
+                                };
+                                setNewCamera({ 
+                                  ...newCamera, 
+                                  phoneApp: app,
+                                  phonePort: portMap[app] || '8080'
+                                });
+                              }}
                               className="w-full px-3 py-2 bg-slate-900 border border-slate-700 rounded text-slate-200 text-sm"
                             >
-                              <option value="ipwebcam">IP Webcam</option>
-                              <option value="droidcam">DroidCam</option>
-                              <option value="iriun">Iriun</option>
+                              <option value="ipwebcam">IP Webcam (8080)</option>
+                              <option value="droidcam">DroidCam (4747)</option>
+                              <option value="iriun">Iriun (8080)</option>
                             </select>
                           </div>
                         </div>

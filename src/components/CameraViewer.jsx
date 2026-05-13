@@ -16,9 +16,30 @@ export function CameraViewer({ camera, onClose }) {
     setError(null);
   };
 
-  const handleImageError = () => {
+  const handleImageError = (e) => {
     setIsLoading(false);
-    setError('Failed to load camera stream. Check connection and camera settings.');
+    console.error('Camera stream error:', e);
+    
+    // Determine error type
+    let errorMsg = 'Failed to load camera stream.';
+    
+    if (camera.type === 'phone') {
+      errorMsg = `❌ Cannot connect to ${camera.phoneApp || 'phone camera'}
+      
+Possible issues:
+1. Wrong IP address (Currently: ${camera.url})
+2. Wrong port (${camera.phoneApp === 'droidcam' ? 'Use 4747' : 'Use 8080'})
+3. Phone and computer not on same Wi-Fi
+4. Camera app not running on phone
+5. Browser security blocking (CORS)
+
+🔧 Quick Fix:
+• Open browser: ${camera.url}
+• If it works there, issue is CORS
+• If it doesn't work, check IP/port/Wi-Fi`;
+    }
+    
+    setError(errorMsg);
   };
 
   const getCameraStreamUrl = () => {
@@ -74,24 +95,37 @@ export function CameraViewer({ camera, onClose }) {
           )}
 
           {error && (
-            <div className="absolute inset-0 flex items-center justify-center p-8">
-              <div className="text-center max-w-md">
+            <div className="absolute inset-0 flex items-center justify-center p-8 overflow-auto">
+              <div className="text-left max-w-2xl bg-slate-900/90 p-6 rounded-xl border border-red-500/30">
                 <Camera className="w-12 h-12 text-red-400 mx-auto mb-3 opacity-50" />
-                <p className="text-red-400 font-semibold mb-2">Camera Connection Error</p>
-                <p className="text-sm text-slate-400 mb-4">{error}</p>
-                <button
-                  onClick={() => {
-                    setError(null);
-                    setIsLoading(true);
-                    if (imgRef.current) {
-                      imgRef.current.src = streamUrl + '?t=' + Date.now();
-                    }
-                  }}
-                  className="px-4 py-2 bg-blue-500/10 hover:bg-blue-500/20 text-blue-400 rounded-lg border border-blue-500/30 transition-colors inline-flex items-center gap-2"
-                >
-                  <RefreshCw className="w-4 h-4" />
-                  Retry
-                </button>
+                <p className="text-red-400 font-semibold mb-4 text-center">Camera Connection Error</p>
+                <pre className="text-sm text-slate-300 mb-4 whitespace-pre-wrap font-mono bg-slate-950 p-4 rounded">{error}</pre>
+                <div className="flex gap-3 justify-center">
+                  <button
+                    onClick={() => {
+                      setError(null);
+                      setIsLoading(true);
+                      if (imgRef.current) {
+                        imgRef.current.src = streamUrl + '?t=' + Date.now();
+                      }
+                    }}
+                    className="px-4 py-2 bg-blue-500/10 hover:bg-blue-500/20 text-blue-400 rounded-lg border border-blue-500/30 transition-colors inline-flex items-center gap-2"
+                  >
+                    <RefreshCw className="w-4 h-4" />
+                    Retry Connection
+                  </button>
+                  {streamUrl && (
+                    <a
+                      href={streamUrl}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="px-4 py-2 bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-400 rounded-lg border border-emerald-500/30 transition-colors inline-flex items-center gap-2"
+                    >
+                      <Maximize2 className="w-4 h-4" />
+                      Test in Browser
+                    </a>
+                  )}
+                </div>
               </div>
             </div>
           )}

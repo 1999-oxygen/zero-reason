@@ -712,6 +712,32 @@ export default function App() {
         <div className="flex-1 overflow-auto p-8 relative">
           {activeView === 'cameras' ? (
             <div className="space-y-6">
+              {/* CORS Warning Banner */}
+              {window.location.protocol === 'https:' && (
+                <div className="bg-yellow-500/10 border-2 border-yellow-500/50 rounded-xl p-4">
+                  <div className="flex items-start gap-3">
+                    <AlertTriangle className="w-6 h-6 text-yellow-400 flex-shrink-0 mt-0.5" />
+                    <div className="flex-1">
+                      <h3 className="font-bold text-yellow-400 mb-2">⚠️ Camera Feeds May Not Work (CORS Issue)</h3>
+                      <p className="text-sm text-slate-300 mb-3">
+                        Your site is HTTPS but phone cameras use HTTP. Browsers block this for security.
+                      </p>
+                      <div className="bg-slate-950 rounded-lg p-3 mb-3">
+                        <p className="text-xs font-mono text-emerald-400 mb-1">✅ SOLUTION: Run app locally</p>
+                        <code className="text-xs text-slate-400 block">
+                          cd "/Users/admin/Desktop/zero reason/omni-vision-platform"<br/>
+                          npm run dev
+                        </code>
+                        <p className="text-xs text-slate-400 mt-2">Then open: <span className="text-blue-400">http://localhost:5173</span></p>
+                      </div>
+                      <p className="text-xs text-slate-400">
+                        💡 On localhost (HTTP), cameras will work perfectly with no CORS issues!
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              )}
+              
               <div className="flex items-center justify-between">
                 <h2 className="text-2xl font-bold text-white">Live Camera Feeds</h2>
                 <div className="flex items-center gap-2">

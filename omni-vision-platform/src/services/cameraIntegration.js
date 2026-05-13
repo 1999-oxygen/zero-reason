@@ -92,27 +92,35 @@ class CameraIntegrationService {
   }
 
   // Start a phone camera stream (IP Webcam or DroidCam)
-  async startPhoneCamera(cameraId, phoneIP, port = 8080, app = 'ipwebcam') {
+  async startPhoneCamera(cameraId, phoneIP, port = null, app = 'ipwebcam') {
     try {
       let streamUrl;
+      let defaultPort;
       
       switch (app.toLowerCase()) {
         case 'ipwebcam':
-          // IP Webcam URLs
-          streamUrl = `http://${phoneIP}:${port}/video`;
+          // IP Webcam - Default port 8080
+          defaultPort = port || 8080;
+          streamUrl = `http://${phoneIP}:${defaultPort}/video`;
           break;
         case 'droidcam':
-          // DroidCam URLs
-          streamUrl = `http://${phoneIP}:${port}/mjpegfeed`;
+          // DroidCam - Default port 4747 (NOT 8080!)
+          defaultPort = port || 4747;
+          streamUrl = `http://${phoneIP}:${defaultPort}/mjpegfeed`;
           break;
         case 'iriun':
-          // Iriun Webcam
-          streamUrl = `http://${phoneIP}:${port}/video`;
+          // Iriun Webcam - Default port 8080
+          defaultPort = port || 8080;
+          streamUrl = `http://${phoneIP}:${defaultPort}/video`;
           break;
         default:
           // Generic MJPEG stream
-          streamUrl = `http://${phoneIP}:${port}/video`;
+          defaultPort = port || 8080;
+          streamUrl = `http://${phoneIP}:${defaultPort}/video`;
       }
+
+      // Log for debugging
+      console.log(`📹 Starting ${app} camera: ${streamUrl}`);
 
       this.activeStreams.set(cameraId, streamUrl);
       this.updateCameraStatus(cameraId, 'online');

@@ -7,38 +7,84 @@ export function CameraViewer({ camera, onClose }) {
   const imgRef = useRef(null);
 
   useEffect(() => {
+    console.log('🎥 CameraViewer mounted:', {
+      name: camera.name,
+      type: camera.type,
+      url: camera.url,
+      phoneApp: camera.phoneApp,
+      status: camera.status
+    });
     setIsLoading(true);
     setError(null);
   }, [camera]);
 
   const handleImageLoad = () => {
+    console.log('✅ Camera stream loaded successfully!');
     setIsLoading(false);
     setError(null);
   };
 
   const handleImageError = (e) => {
     setIsLoading(false);
-    console.error('Camera stream error:', e);
+    console.error('❌ Camera stream error:', e);
+    console.error('Error target:', e.target);
+    console.error('Image src:', e.target?.src);
+    
+    // Check if CORS error
+    const isCORS = window.location.protocol === 'https:' && camera.url?.startsWith('http:');
+    
+    console.error('CORS Issue:', isCORS);
+    console.error('Site Protocol:', window.location.protocol);
+    console.error('Camera URL Protocol:', camera.url?.split(':')[0]);
     
     // Determine error type
     let errorMsg = 'Failed to load camera stream.';
     
     if (camera.type === 'phone') {
-      errorMsg = `❌ Cannot connect to ${camera.phoneApp || 'phone camera'}
-      
+      if (isCORS) {
+        errorMsg = `🔒 CORS SECURITY BLOCKING (Most Common Issue!)
+
+Your site is HTTPS but camera is HTTP - browser blocks this!
+
+✅ SOLUTIONS (Choose one):
+
+1. RUN APP LOCALLY (Easiest):
+   • Open terminal in project folder
+   • Run: npm run dev
+   • Access at: http://localhost:5173
+   • No CORS issues on localhost!
+
+2. TEST IN NEW TAB:
+   • Click "Open Camera Direct" button below
+   • View camera in separate tab
+   • Works but not integrated
+
+3. USE BROWSER EXTENSION:
+   • Install "CORS Unblock" extension
+   • Enable it for this site
+   • ⚠️ Only on trusted networks!
+
+Current URLs:
+• Site: ${window.location.protocol}//${window.location.host}
+• Camera: ${camera.url}`;
+      } else {
+        errorMsg = `❌ Cannot connect to ${camera.phoneApp || 'phone camera'}
+
 Possible issues:
 1. Wrong IP address (Currently: ${camera.url})
 2. Wrong port (${camera.phoneApp === 'droidcam' ? 'Use 4747' : 'Use 8080'})
 3. Phone and computer not on same Wi-Fi
 4. Camera app not running on phone
-5. Browser security blocking (CORS)
 
-🔧 Quick Fix:
-• Open browser: ${camera.url}
-• If it works there, issue is CORS
-• If it doesn't work, check IP/port/Wi-Fi`;
+🔧 Quick Checks:
+• Camera app running on phone?
+• "Start server" button pressed?
+• IP matches what app shows?
+• Both devices on same Wi-Fi?`;
+      }
     }
     
+    console.error('📋 Error message shown to user:', errorMsg);
     setError(errorMsg);
   };
 

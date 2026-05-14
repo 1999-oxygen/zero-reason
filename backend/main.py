@@ -8,8 +8,6 @@ Run:  python main.py
 """
 import asyncio
 import json
-import cv2
-import numpy as np
 from pathlib import Path
 from datetime import datetime
 from typing import List, Optional
@@ -19,9 +17,30 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse, StreamingResponse
 import uvicorn
 
+# Optional heavy imports — backend works without them (mock mode)
+try:
+    import cv2
+    CV2_AVAILABLE = True
+except ImportError:
+    CV2_AVAILABLE = False
+    print("⚠️ opencv-python not installed — video processing disabled")
+
+try:
+    import numpy as np
+    NUMPY_AVAILABLE = True
+except ImportError:
+    NUMPY_AVAILABLE = False
+    print("⚠️ numpy not installed — using lists instead")
+
 # Our modules
 import database as db
-from ai_brain import BrainManager, SectorAIBrain, ZoneConfig
+
+try:
+    from ai_brain import BrainManager, SectorAIBrain, ZoneConfig
+    AI_BRAIN_AVAILABLE = True
+except ImportError as e:
+    AI_BRAIN_AVAILABLE = False
+    print(f"⚠️ AI Brain not available: {e} — running in API-only mode")
 
 # ── Init ──
 app = FastAPI(title="OmniVision Edge Server", version="2.0.0")
@@ -39,7 +58,7 @@ db.init_database()
 db.seed_demo_data()
 
 # Brain manager (one brain per active sector)
-brain_mgr = BrainManager()
+brain_mgr = BrainManager() if AI_BRAIN_AVAILABLE else None
 
 
 # ═══════════════════════════════════════════════════════════════
@@ -53,7 +72,7 @@ def health():
         "version": "2.0.0",
         "mode": "edge",
         "time": datetime.now().isoformat(),
-        "active_brains": brain_mgr.list()
+        "active_brains": brain_mgr.list() if brain_mgr else []
     }
 
 
@@ -304,9 +323,12 @@ async def video_feed_ws(websocket: WebSocket):
         model_path = config.get("modelPath", "yolov8n.pt")
 
         # Init brain for this sector
-        current_brain = brain_mgr.get_or_create(current_sector, model_path)
+        current_brain = brain_mgr.get_or_create(current_sector, model_path) if brain_mgr else None
 
         # Open video source
+        if not CV2_AVAILABLE:
+            await websocket.send_text(json.dumps({"error": "opencv-python not installed — video feed unavailable"}))
+            return
         if camera_source == "0" or camera_source == "":
             cap = cv2.VideoCapture(0)
         else:
@@ -325,7 +347,7 @@ async def video_feed_ws(websocket: WebSocket):
                 continue
 
             # Run AI inference
-            result = current_brain.process_frame(frame)
+            result = current_brain.process_frame(frame) if current_brain else {"boxes": [], "sales": [], "alerts": []}
 
             # Optionally compress frame for preview (base64 JPEG)
             small = cv2.resize(frame, (320, 240))

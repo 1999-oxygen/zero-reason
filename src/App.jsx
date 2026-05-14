@@ -859,6 +859,7 @@ export default function App() {
                 <CameraGridView 
                   cameras={cameras.filter(c => c.module === activeModule)}
                   onSelectCamera={(camera) => setSelectedCamera(camera)}
+                  sectorConfig={sectorConfigs[activeModule]}
                 />
               ) : (
                 <div className="text-center py-16">

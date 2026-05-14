@@ -9,6 +9,7 @@ import {
 } from 'lucide-react';
 import { VideoPlayer } from './components/VideoRecorder';
 import { CameraViewer, CameraGridView } from './components/CameraViewer';
+import TrainingImageManager from './components/TrainingImageManager';
 import posService from './services/posIntegration';
 import cameraService from './services/cameraIntegration';
 import aiDetectionService from './services/aiDetection';
@@ -1493,28 +1494,22 @@ export default function App() {
                           </div>
                         )}
 
-                        {/* Add Training Images Button */}
-                        <div className="flex gap-2 mt-4">
-                          <button
-                            onClick={() => {
-                              alert(`Training image upload coming soon!\n\nYou'll be able to:\n• Upload images of ${sectorConfigs[selectedSectorForConfig].objectClasses?.slice(0, 3).join(', ')}, etc.\n• Label and annotate objects\n• Train custom ML models\n• Deploy to cameras in real-time`);
+                        {/* Training Image Manager */}
+                        <div className="mt-4 pt-4 border-t border-slate-800">
+                          <TrainingImageManager
+                            sectorConfig={sectorConfigs[selectedSectorForConfig]}
+                            sectorId={selectedSectorForConfig}
+                            onImagesChange={(updatedImages) => {
+                              const updated = sectorAIConfig.updateSectorConfig(selectedSectorForConfig, {
+                                customDatabase: {
+                                  ...sectorConfigs[selectedSectorForConfig].customDatabase,
+                                  trainingImages: updatedImages,
+                                  itemCount: updatedImages.length
+                                }
+                              });
+                              setSectorConfigs({ ...sectorConfigs, [selectedSectorForConfig]: updated });
                             }}
-                            className="flex-1 px-4 py-2 bg-blue-500/10 hover:bg-blue-500/20 text-blue-400 rounded-lg border border-blue-500/30 transition-colors text-sm font-semibold"
-                          >
-                            <Plus className="w-4 h-4 inline mr-2" />
-                            Add Training Images
-                          </button>
-                          <button
-                            onClick={() => {
-                              if (confirm(`Clear all training data for ${sectorConfigs[selectedSectorForConfig].name}?`)) {
-                                sectorAIConfig.clearTrainingData(selectedSectorForConfig);
-                                setSectorConfigs({ ...sectorConfigs });
-                              }
-                            }}
-                            className="px-4 py-2 bg-red-500/10 hover:bg-red-500/20 text-red-400 rounded-lg border border-red-500/30 transition-colors text-sm"
-                          >
-                            <Trash2 className="w-4 h-4" />
-                          </button>
+                          />
                         </div>
                       </div>
                     )}

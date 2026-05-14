@@ -4,13 +4,15 @@ import {
   Video, Bell, Search, AlertTriangle, CheckCircle, Clock,
   Activity, Settings, Users, ArrowRight, Map, HeartPulse,
   BrainCircuit, LayoutDashboard, Fingerprint, DoorOpen, Coffee,
-  Sparkles, X, Loader2, PlayCircle, Film, Save, Camera, Plus, Trash2, Eye
+  Sparkles, X, Loader2, PlayCircle, Film, Save, Camera, Plus, Trash2, Eye,
+  Wine, Music
 } from 'lucide-react';
 import { VideoPlayer } from './components/VideoRecorder';
 import { CameraViewer, CameraGridView } from './components/CameraViewer';
 import posService from './services/posIntegration';
 import cameraService from './services/cameraIntegration';
 import aiDetectionService from './services/aiDetection';
+import sectorAIConfig from './services/sectorAIConfig';
 
 // --- AI API INTEGRATION (via Netlify Function) ---
 const callGeminiAPI = async (prompt) => {
@@ -100,11 +102,17 @@ export default function App() {
     autoRecordSuspicious: true
   });
   const [aiInitialized, setAiInitialized] = useState(false);
+  
+  // Sector-Specific AI Configuration State
+  const [sectorConfigs, setSectorConfigs] = useState(sectorAIConfig.getAllSectorConfigs());
+  const [selectedSectorForConfig, setSelectedSectorForConfig] = useState(null);
 
   // Define the different industry modules
   const modules = [
     { id: 'retail', name: 'Retail & Shoes', icon: Store, color: 'text-blue-500', bg: 'bg-blue-500/10' },
     { id: 'hospitality', name: 'Hotels & Dining', icon: Utensils, color: 'text-orange-500', bg: 'bg-orange-500/10' },
+    { id: 'liquor', name: 'Liquor Stores', icon: Wine, color: 'text-amber-500', bg: 'bg-amber-500/10' },
+    { id: 'clubs', name: 'Clubs & Nightlife', icon: Music, color: 'text-pink-500', bg: 'bg-pink-500/10' },
     { id: 'security', name: 'Facility Security', icon: ShieldAlert, color: 'text-red-500', bg: 'bg-red-500/10' },
     { id: 'education', name: 'Education & Wellness', icon: GraduationCap, color: 'text-purple-500', bg: 'bg-purple-500/10' },
     { id: 'agriculture', name: 'Livestock & Farms', icon: Tractor, color: 'text-emerald-500', bg: 'bg-emerald-500/10' }
@@ -436,6 +444,93 @@ export default function App() {
           </div>
         );
 
+      case 'liquor':
+        return (
+          <div className="space-y-6 animate-in fade-in">
+            <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+              <StatCard title="Customers Today" value="156" icon={Users} color="blue" />
+              <StatCard title="Premium Items Tracked" value="48" icon={Wine} color="amber" />
+              <StatCard title="Theft Alerts" value="3" icon={AlertTriangle} color="red" alert />
+              <StatCard title="Age Verifications" value="12" icon={ShieldAlert} color="emerald" />
+            </div>
+            <div className="flex gap-6 h-[400px]">
+              <div className="flex-1 bg-slate-900 rounded-2xl border border-slate-800 overflow-hidden relative">
+                <div className="absolute inset-0 bg-[url('https://images.unsplash.com/photo-1572116469696-31de0f17cc34?q=80&w=1974&auto=format&fit=crop')] bg-cover bg-center opacity-40"></div>
+                {/* Liquor Bottle Detection */}
+                <div className="absolute top-1/4 right-1/3 w-32 h-48 border-2 border-amber-500 bg-amber-500/20 rounded-lg">
+                  <div className="absolute -top-12 left-[-2px] bg-amber-500 text-slate-900 text-[10px] font-bold px-2 py-1 rounded flex flex-col">
+                    <span>Premium Whiskey</span>
+                    <span>Value: $450</span>
+                    <span>Tracked: Active</span>
+                  </div>
+                </div>
+                {/* Concealment Detection */}
+                <div className="absolute top-1/3 left-1/4 w-48 h-64 border-2 border-red-500 bg-red-500/10 rounded-lg">
+                  <div className="absolute -top-10 left-[-2px] bg-red-500 text-white text-[10px] font-bold px-2 py-1 rounded flex flex-col">
+                    <span>Wine Bottle (Unpaid)</span>
+                    <span>Action: Concealed in Jacket</span>
+                  </div>
+                  <svg className="absolute inset-0 w-full h-full pointer-events-none" viewBox="0 0 100 100">
+                    <path d="M 50 30 L 50 70" stroke="red" strokeWidth="2" strokeDasharray="4" className="animate-pulse" />
+                    <circle cx="50" cy="70" r="4" fill="red" />
+                  </svg>
+                </div>
+              </div>
+              <div className="w-80 bg-slate-900 rounded-2xl border border-slate-800 p-4 overflow-y-auto">
+                <h3 className="text-sm font-bold text-slate-400 uppercase mb-4">Liquor Store AI</h3>
+                <LogEntry time="14:22" title="Premium Item Tracked" desc="Glenfiddich 18 picked up from shelf." type="info" onAnalyze={handleAnalyzeIncident} />
+                <LogEntry time="14:23" title="Age Check Required" desc="Customer appears under 25. Verification needed." type="warning" onAnalyze={handleAnalyzeIncident} />
+                <LogEntry time="14:25" title="Concealment Detected" desc="Wine bottle moved to jacket area." type="danger" onAnalyze={handleAnalyzeIncident} />
+                <LogEntry time="14:26" title="THEFT ALERT" desc="Subject heading to exit without payment." type="danger" onAnalyze={handleAnalyzeIncident} />
+              </div>
+            </div>
+          </div>
+        );
+
+      case 'clubs':
+        return (
+          <div className="space-y-6 animate-in fade-in">
+            <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+              <StatCard title="Crowd Density" value="78%" icon={Users} color="pink" />
+              <StatCard title="VIP Area Status" value="Active" icon={Music} color="purple" />
+              <StatCard title="Security Alerts" value="2" icon={AlertTriangle} color="red" alert />
+              <StatCard title="Entry/Exit Count" value="342" icon={DoorOpen} color="blue" />
+            </div>
+            <div className="flex gap-6 h-[400px]">
+              <div className="flex-1 bg-slate-900 rounded-2xl border border-slate-800 overflow-hidden relative">
+                <div className="absolute inset-0 bg-[url('https://images.unsplash.com/photo-1571266028243-d220c6a711fe?q=80&w=1974&auto=format&fit=crop')] bg-cover bg-center opacity-30"></div>
+                <div className="absolute inset-0 bg-gradient-to-b from-pink-900/20 via-purple-900/10 to-slate-950/40"></div>
+                {/* Crowd Density Detection */}
+                <div className="absolute top-1/4 left-1/3 w-64 h-48 border-2 border-yellow-500 bg-yellow-500/10 rounded-lg">
+                  <div className="absolute -top-8 left-[-2px] bg-yellow-500 text-slate-900 text-[10px] font-bold px-2 py-1 rounded">
+                    CROWD DENSITY: 85% (High)
+                  </div>
+                </div>
+                {/* Aggressive Behavior Detection */}
+                <div className="absolute top-1/2 right-1/4 w-48 h-56 border-2 border-red-500 bg-red-500/20 rounded-lg">
+                  <div className="absolute -top-10 left-[-2px] bg-red-500 text-white text-[10px] font-bold px-2 py-1 rounded flex flex-col">
+                    <span>Aggressive Posture</span>
+                    <span>2 Subjects</span>
+                    <span>Confidence: 92%</span>
+                  </div>
+                  <svg className="absolute inset-0 w-full h-full" viewBox="0 0 100 100">
+                    <line x1="30" y1="30" x2="50" y2="50" stroke="red" strokeWidth="2" />
+                    <line x1="70" y1="30" x2="50" y2="50" stroke="red" strokeWidth="2" />
+                    <circle cx="50" cy="50" r="5" fill="red" className="animate-ping" />
+                  </svg>
+                </div>
+              </div>
+              <div className="w-80 bg-slate-900 rounded-2xl border border-slate-800 p-4 overflow-y-auto">
+                <h3 className="text-sm font-bold text-slate-400 uppercase mb-4">Nightlife Security AI</h3>
+                <LogEntry time="23:15" title="Dance Floor Analysis" desc="Crowd density at 78%. Normal levels." type="success" onAnalyze={handleAnalyzeIncident} />
+                <LogEntry time="23:18" title="VIP Area Access" desc="Unauthorized entry attempt detected." type="warning" onAnalyze={handleAnalyzeIncident} />
+                <LogEntry time="23:22" title="Crowd Surge" desc="Density increased to 85%. Monitor closely." type="warning" onAnalyze={handleAnalyzeIncident} />
+                <LogEntry time="23:24" title="FIGHT DETECTION" desc="Aggressive behavior detected near bar area." type="danger" onAnalyze={handleAnalyzeIncident} />
+              </div>
+            </div>
+          </div>
+        );
+
       case 'security':
         return (
           <div className="space-y-6 animate-in fade-in">
@@ -739,10 +834,15 @@ export default function App() {
               )}
               
               <div className="flex items-center justify-between">
-                <h2 className="text-2xl font-bold text-white">Live Camera Feeds</h2>
+                <div>
+                  <h2 className="text-2xl font-bold text-white">Live Camera Feeds</h2>
+                  <p className="text-sm text-slate-400 mt-1">
+                    Sector: <span className="font-semibold text-white">{modules.find(m => m.id === activeModule)?.name}</span>
+                  </p>
+                </div>
                 <div className="flex items-center gap-2">
                   <span className="text-sm text-slate-400">
-                    {cameras.filter(c => c.status === 'online').length} of {cameras.length} online
+                    {cameras.filter(c => c.module === activeModule && c.status === 'online').length} of {cameras.filter(c => c.module === activeModule).length} online
                   </span>
                   <button
                     onClick={() => setActiveView('settings')}
@@ -754,22 +854,22 @@ export default function App() {
                 </div>
               </div>
 
-              {cameras.length > 0 ? (
+              {cameras.filter(c => c.module === activeModule).length > 0 ? (
                 <CameraGridView 
-                  cameras={cameras}
+                  cameras={cameras.filter(c => c.module === activeModule)}
                   onSelectCamera={(camera) => setSelectedCamera(camera)}
                 />
               ) : (
                 <div className="text-center py-16">
                   <Camera className="w-16 h-16 text-slate-600 mx-auto mb-4" />
-                  <h3 className="text-lg font-semibold text-white mb-2">No Cameras Configured</h3>
-                  <p className="text-slate-400 mb-6">Add your first camera to start monitoring</p>
+                  <h3 className="text-lg font-semibold text-white mb-2">No Cameras in {modules.find(m => m.id === activeModule)?.name}</h3>
+                  <p className="text-slate-400 mb-6">Add cameras for this sector to start monitoring</p>
                   <button
                     onClick={() => setActiveView('settings')}
                     className="px-6 py-3 bg-blue-500/10 hover:bg-blue-500/20 text-blue-400 rounded-lg border border-blue-500/30 transition-colors font-semibold inline-flex items-center gap-2"
                   >
                     <Plus className="w-5 h-5" />
-                    Add Camera
+                    Add Camera for {modules.find(m => m.id === activeModule)?.name}
                   </button>
                 </div>
               )}
@@ -1004,7 +1104,7 @@ export default function App() {
                           />
                         </div>
                         <div>
-                          <label className="block text-xs text-slate-400 mb-1">AI Module</label>
+                          <label className="block text-xs text-slate-400 mb-1">AI Module / Sector</label>
                           <select
                             value={newCamera.module}
                             onChange={(e) => setNewCamera({ ...newCamera, module: e.target.value })}
@@ -1012,6 +1112,8 @@ export default function App() {
                           >
                             <option value="retail">Retail & Shoes</option>
                             <option value="hospitality">Hotels & Dining</option>
+                            <option value="liquor">Liquor Stores</option>
+                            <option value="clubs">Clubs & Nightlife</option>
                             <option value="security">Facility Security</option>
                             <option value="education">Education & Wellness</option>
                             <option value="agriculture">Livestock & Farms</option>
@@ -1190,6 +1292,253 @@ export default function App() {
                     Save AI Configuration
                   </button>
                 </div>
+              </div>
+
+              {/* Sector-Specific AI Configuration */}
+              <div className="bg-slate-900 rounded-xl border border-slate-800 p-6">
+                <div className="flex items-center justify-between mb-6">
+                  <div>
+                    <h3 className="text-lg font-semibold text-white">Sector-Specific AI Models</h3>
+                    <p className="text-xs text-slate-400 mt-1">
+                      Configure custom AI models and training databases for each business sector
+                    </p>
+                  </div>
+                </div>
+
+                {/* Sector Selection */}
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-6">
+                  {modules.map((module) => (
+                    <button
+                      key={module.id}
+                      onClick={() => setSelectedSectorForConfig(module.id)}
+                      className={`p-4 rounded-lg border transition-all ${
+                        selectedSectorForConfig === module.id
+                          ? `${module.bg} ${module.color} border-${module.color.split('-')[1]}-500/50 font-semibold`
+                          : 'bg-slate-950 border-slate-800 text-slate-400 hover:border-slate-700'
+                      }`}
+                    >
+                      <module.icon className={`w-6 h-6 mx-auto mb-2 ${
+                        selectedSectorForConfig === module.id ? module.color : 'text-slate-500'
+                      }`} />
+                      <p className="text-xs text-center">{module.name}</p>
+                    </button>
+                  ))}
+                </div>
+
+                {/* Sector Configuration Panel */}
+                {selectedSectorForConfig && sectorConfigs[selectedSectorForConfig] && (
+                  <div className="space-y-4 bg-slate-950 rounded-lg p-6 border border-slate-800">
+                    <div className="flex items-center justify-between pb-4 border-b border-slate-800">
+                      <h4 className="font-semibold text-white flex items-center gap-2">
+                        {modules.find(m => m.id === selectedSectorForConfig)?.icon && 
+                          React.createElement(modules.find(m => m.id === selectedSectorForConfig).icon, { 
+                            className: `w-5 h-5 ${modules.find(m => m.id === selectedSectorForConfig)?.color}` 
+                          })
+                        }
+                        {sectorConfigs[selectedSectorForConfig].name} AI Configuration
+                      </h4>
+                      <label className="relative inline-flex items-center cursor-pointer">
+                        <input
+                          type="checkbox"
+                          checked={sectorConfigs[selectedSectorForConfig].enabled}
+                          onChange={(e) => {
+                            const updated = sectorAIConfig.updateSectorConfig(selectedSectorForConfig, {
+                              enabled: e.target.checked
+                            });
+                            setSectorConfigs({ ...sectorConfigs, [selectedSectorForConfig]: updated });
+                          }}
+                          className="sr-only peer"
+                        />
+                        <div className="w-11 h-6 bg-slate-700 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-emerald-500"></div>
+                      </label>
+                    </div>
+
+                    {/* AI Model Selection */}
+                    <div>
+                      <label className="block text-sm font-medium text-slate-300 mb-2">AI Model Type</label>
+                      <select
+                        value={sectorConfigs[selectedSectorForConfig].aiModel}
+                        onChange={(e) => {
+                          const updated = sectorAIConfig.updateSectorConfig(selectedSectorForConfig, {
+                            aiModel: e.target.value
+                          });
+                          setSectorConfigs({ ...sectorConfigs, [selectedSectorForConfig]: updated });
+                        }}
+                        className="w-full px-4 py-2 bg-slate-900 border border-slate-700 rounded-lg text-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      >
+                        <option value="general-retail">General Retail Detection</option>
+                        <option value="hospitality">Hospitality & Dining</option>
+                        <option value="liquor-specialized">Liquor Store Specialized</option>
+                        <option value="nightlife-specialized">Nightlife & Clubs Specialized</option>
+                        <option value="security">Security & Surveillance</option>
+                        <option value="agriculture">Agriculture & Livestock</option>
+                        <option value="education">Education & Wellness</option>
+                        <option value="custom">Custom Trained Model</option>
+                      </select>
+                    </div>
+
+                    {/* Custom ML Model URL */}
+                    <div>
+                      <label className="block text-sm font-medium text-slate-300 mb-2">
+                        Custom ML Model URL (Optional)
+                        <span className="text-xs text-slate-500 ml-2">Roboflow, TensorFlow.js, etc.</span>
+                      </label>
+                      <input
+                        type="text"
+                        value={sectorConfigs[selectedSectorForConfig].mlModelUrl || ''}
+                        onChange={(e) => {
+                          const updated = sectorAIConfig.updateSectorConfig(selectedSectorForConfig, {
+                            mlModelUrl: e.target.value
+                          });
+                          setSectorConfigs({ ...sectorConfigs, [selectedSectorForConfig]: updated });
+                        }}
+                        placeholder="https://detect.roboflow.com/your-model/1"
+                        className="w-full px-4 py-2 bg-slate-900 border border-slate-700 rounded-lg text-slate-200 placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      />
+                    </div>
+
+                    {/* Confidence Threshold */}
+                    <div>
+                      <label className="block text-sm font-medium text-slate-300 mb-2">
+                        Detection Confidence Threshold: {(sectorConfigs[selectedSectorForConfig].confidenceThreshold * 100).toFixed(0)}%
+                      </label>
+                      <input
+                        type="range"
+                        min="0"
+                        max="1"
+                        step="0.05"
+                        value={sectorConfigs[selectedSectorForConfig].confidenceThreshold}
+                        onChange={(e) => {
+                          const updated = sectorAIConfig.updateSectorConfig(selectedSectorForConfig, {
+                            confidenceThreshold: parseFloat(e.target.value)
+                          });
+                          setSectorConfigs({ ...sectorConfigs, [selectedSectorForConfig]: updated });
+                        }}
+                        className="w-full h-2 bg-slate-700 rounded-lg appearance-none cursor-pointer accent-blue-500"
+                      />
+                    </div>
+
+                    {/* Detection Types */}
+                    <div>
+                      <label className="block text-sm font-medium text-slate-300 mb-2">Enabled Detection Types</label>
+                      <div className="grid grid-cols-2 gap-2">
+                        {sectorConfigs[selectedSectorForConfig].detectionTypes?.map((type) => (
+                          <div key={type} className="flex items-center px-3 py-2 bg-slate-900 rounded-lg border border-slate-800">
+                            <CheckCircle className="w-4 h-4 text-emerald-400 mr-2" />
+                            <span className="text-sm text-slate-300 capitalize">{type.replace(/_/g, ' ')}</span>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+
+                    {/* Custom Database Section */}
+                    {sectorConfigs[selectedSectorForConfig].customDatabase && (
+                      <div className="pt-4 border-t border-slate-800">
+                        <div className="flex items-center justify-between mb-3">
+                          <div>
+                            <h5 className="font-semibold text-white text-sm">Custom Training Database</h5>
+                            <p className="text-xs text-slate-400 mt-1">
+                              {sectorConfigs[selectedSectorForConfig].customDatabase.name}
+                            </p>
+                          </div>
+                          <div className="text-right">
+                            <p className="text-xs text-slate-500">Training Images</p>
+                            <p className="text-lg font-bold text-blue-400">
+                              {sectorConfigs[selectedSectorForConfig].customDatabase.itemCount || 0}
+                            </p>
+                          </div>
+                        </div>
+
+                        {/* Object Classes */}
+                        <div className="mb-3">
+                          <label className="block text-xs font-medium text-slate-400 mb-2">Trainable Object Classes</label>
+                          <div className="flex flex-wrap gap-2">
+                            {sectorConfigs[selectedSectorForConfig].objectClasses?.slice(0, 8).map((objClass) => (
+                              <span key={objClass} className="px-2 py-1 bg-blue-500/10 text-blue-400 text-xs rounded border border-blue-500/30">
+                                {objClass.replace(/_/g, ' ')}
+                              </span>
+                            ))}
+                            {sectorConfigs[selectedSectorForConfig].objectClasses?.length > 8 && (
+                              <span className="px-2 py-1 bg-slate-800 text-slate-400 text-xs rounded">
+                                +{sectorConfigs[selectedSectorForConfig].objectClasses.length - 8} more
+                              </span>
+                            )}
+                          </div>
+                        </div>
+
+                        {/* Special Rules (for liquor and clubs) */}
+                        {sectorConfigs[selectedSectorForConfig].specialRules && (
+                          <div className="bg-slate-900 rounded-lg p-3 border border-slate-800">
+                            <p className="text-xs font-semibold text-slate-400 mb-2">Special Detection Rules</p>
+                            <div className="space-y-1">
+                              {Object.entries(sectorConfigs[selectedSectorForConfig].specialRules).map(([key, value]) => {
+                                if (typeof value === 'boolean' && value) {
+                                  return (
+                                    <div key={key} className="flex items-center text-xs text-slate-300">
+                                      <CheckCircle className="w-3 h-3 text-emerald-400 mr-2" />
+                                      {key.replace(/([A-Z])/g, ' $1').trim()}
+                                    </div>
+                                  );
+                                } else if (typeof value === 'number') {
+                                  return (
+                                    <div key={key} className="flex items-center text-xs text-slate-300">
+                                      <Activity className="w-3 h-3 text-blue-400 mr-2" />
+                                      {key.replace(/([A-Z])/g, ' $1').trim()}: {(value * 100).toFixed(0)}%
+                                    </div>
+                                  );
+                                }
+                                return null;
+                              })}
+                            </div>
+                          </div>
+                        )}
+
+                        {/* Add Training Images Button */}
+                        <div className="flex gap-2 mt-4">
+                          <button
+                            onClick={() => {
+                              alert(`Training image upload coming soon!\n\nYou'll be able to:\n• Upload images of ${sectorConfigs[selectedSectorForConfig].objectClasses?.slice(0, 3).join(', ')}, etc.\n• Label and annotate objects\n• Train custom ML models\n• Deploy to cameras in real-time`);
+                            }}
+                            className="flex-1 px-4 py-2 bg-blue-500/10 hover:bg-blue-500/20 text-blue-400 rounded-lg border border-blue-500/30 transition-colors text-sm font-semibold"
+                          >
+                            <Plus className="w-4 h-4 inline mr-2" />
+                            Add Training Images
+                          </button>
+                          <button
+                            onClick={() => {
+                              if (confirm(`Clear all training data for ${sectorConfigs[selectedSectorForConfig].name}?`)) {
+                                sectorAIConfig.clearTrainingData(selectedSectorForConfig);
+                                setSectorConfigs({ ...sectorConfigs });
+                              }
+                            }}
+                            className="px-4 py-2 bg-red-500/10 hover:bg-red-500/20 text-red-400 rounded-lg border border-red-500/30 transition-colors text-sm"
+                          >
+                            <Trash2 className="w-4 h-4" />
+                          </button>
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Save Button */}
+                    <button
+                      onClick={() => {
+                        sectorAIConfig.saveConfigs();
+                        alert(`${sectorConfigs[selectedSectorForConfig].name} AI configuration saved!`);
+                      }}
+                      className="w-full flex items-center justify-center px-6 py-3 bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-400 rounded-lg border border-emerald-500/30 transition-colors font-semibold mt-4"
+                    >
+                      <Save className="w-4 h-4 mr-2" />
+                      Save {sectorConfigs[selectedSectorForConfig].name} Configuration
+                    </button>
+                  </div>
+                )}
+
+                {!selectedSectorForConfig && (
+                  <div className="text-center py-8 text-slate-500">
+                    <BrainCircuit className="w-12 h-12 mx-auto mb-3 opacity-50" />
+                    <p className="text-sm">Select a sector above to configure its AI settings</p>
+                  </div>
+                )}
               </div>
             </div>
           ) : activeView === 'clips' ? (

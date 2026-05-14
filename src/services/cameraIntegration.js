@@ -94,38 +94,37 @@ class CameraIntegrationService {
   // Start a phone camera stream (IP Webcam or DroidCam)
   async startPhoneCamera(cameraId, phoneIP, port = null, app = 'ipwebcam') {
     try {
-      let streamUrl;
       let defaultPort;
       
+      // Determine default port based on app
       switch (app.toLowerCase()) {
         case 'ipwebcam':
-          // IP Webcam - Default port 8080
           defaultPort = port || 8080;
-          streamUrl = `http://${phoneIP}:${defaultPort}/video`;
           break;
         case 'droidcam':
-          // DroidCam - Default port 4747 (NOT 8080!)
           defaultPort = port || 4747;
-          streamUrl = `http://${phoneIP}:${defaultPort}/mjpegfeed`;
           break;
         case 'iriun':
-          // Iriun Webcam - Default port 8080
           defaultPort = port || 8080;
-          streamUrl = `http://${phoneIP}:${defaultPort}/video`;
           break;
         default:
-          // Generic MJPEG stream
           defaultPort = port || 8080;
-          streamUrl = `http://${phoneIP}:${defaultPort}/video`;
       }
 
-      // Log for debugging
-      console.log(`📹 Starting ${app} camera: ${streamUrl}`);
+      // Use proxy server to avoid CORS and mixed content issues
+      // Proxy server runs on localhost:3001
+      const proxyUrl = `http://localhost:3001/camera-stream?ip=${phoneIP}&port=${defaultPort}&app=${app}`;
+      
+      // Log both the original camera URL and proxy URL for debugging
+      const originalUrl = `http://${phoneIP}:${defaultPort}`;
+      console.log(`📹 Starting ${app} camera:`);
+      console.log(`   Original: ${originalUrl}`);
+      console.log(`   Via Proxy: ${proxyUrl}`);
 
-      this.activeStreams.set(cameraId, streamUrl);
+      this.activeStreams.set(cameraId, proxyUrl);
       this.updateCameraStatus(cameraId, 'online');
       
-      return streamUrl;
+      return proxyUrl;
     } catch (error) {
       console.error('Error connecting to phone camera:', error);
       this.updateCameraStatus(cameraId, 'error');

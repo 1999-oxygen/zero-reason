@@ -1,6 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Camera, RefreshCw, Maximize2, X } from 'lucide-react';
-import { AIDetectionOverlay } from './AIDetectionOverlay';
 
 export function CameraViewer({ camera, onClose }) {
   const [isLoading, setIsLoading] = useState(true);
@@ -178,27 +177,21 @@ Possible issues:
           )}
 
           {streamUrl ? (
-            <>
-              <img
-                ref={imgRef}
-                src={streamUrl}
-                alt={`${camera.name} feed`}
-                className={`w-full h-full object-contain ${isLoading || error ? 'hidden' : ''}`}
-                onLoad={handleImageLoad}
-                onError={handleImageError}
-              />
-              {/* AI Detection Overlay */}
-              <AIDetectionOverlay camera={camera} enabled={true} />
-            </>
+            <img
+              ref={imgRef}
+              src={streamUrl}
+              alt={`${camera.name} feed`}
+              className={`w-full h-full object-contain ${isLoading || error ? 'hidden' : ''}`}
+              onLoad={handleImageLoad}
+              onError={handleImageError}
+            />
           ) : (
-            <div className="text-center p-8 relative">
+            <div className="text-center p-8">
               <Camera className="w-12 h-12 text-slate-600 mx-auto mb-3" />
               <p className="text-slate-400">Webcam preview not available in browser</p>
               <p className="text-sm text-slate-500 mt-2">
                 Use browser's built-in camera access for webcam feeds
               </p>
-              {/* Demo overlay for webcam preview */}
-              <AIDetectionOverlay camera={camera} enabled={true} />
             </div>
           )}
         </div>
@@ -234,7 +227,7 @@ Possible issues:
 }
 
 // Multi-camera grid view component
-export function CameraGridView({ cameras, onSelectCamera, sectorConfig }) {
+export function CameraGridView({ cameras, onSelectCamera }) {
   return (
     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
       {cameras.map((camera) => (
@@ -244,7 +237,7 @@ export function CameraGridView({ cameras, onSelectCamera, sectorConfig }) {
           className="relative bg-slate-900 border border-slate-800 rounded-xl overflow-hidden hover:border-blue-500/50 transition-all group"
         >
           {/* Camera Preview */}
-          <div className="aspect-video bg-slate-950 flex items-center justify-center relative overflow-hidden">
+          <div className="aspect-video bg-slate-950 flex items-center justify-center relative">
             {camera.url ? (
               <img
                 src={camera.url}
@@ -260,19 +253,16 @@ export function CameraGridView({ cameras, onSelectCamera, sectorConfig }) {
               <Camera className="w-8 h-8 text-slate-600 group-hover:text-blue-400 transition-colors" />
             </div>
             
-            {/* AI Detection Overlay for Grid View */}
-            <AIDetectionOverlay camera={camera} sectorConfig={sectorConfig} enabled={true} />
-            
             {/* Live indicator */}
             {camera.status === 'online' && (
-              <div className="absolute top-2 right-2 flex items-center gap-1 px-2 py-1 bg-red-500/90 rounded text-xs font-semibold text-white z-20">
+              <div className="absolute top-2 right-2 flex items-center gap-1 px-2 py-1 bg-red-500/90 rounded text-xs font-semibold text-white">
                 <span className="w-1.5 h-1.5 bg-white rounded-full animate-pulse"></span>
                 LIVE
               </div>
             )}
 
             {/* View overlay */}
-            <div className="absolute inset-0 bg-blue-500/0 group-hover:bg-blue-500/10 transition-colors flex items-center justify-center opacity-0 group-hover:opacity-100 z-20">
+            <div className="absolute inset-0 bg-blue-500/0 group-hover:bg-blue-500/10 transition-colors flex items-center justify-center opacity-0 group-hover:opacity-100">
               <Maximize2 className="w-6 h-6 text-white" />
             </div>
           </div>

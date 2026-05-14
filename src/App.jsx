@@ -5,11 +5,12 @@ import {
   Activity, Settings, Users, ArrowRight, Map, HeartPulse,
   BrainCircuit, LayoutDashboard, Fingerprint, DoorOpen, Coffee,
   Sparkles, X, Loader2, PlayCircle, Film, Save, Camera, Plus, Trash2, Eye,
-  Wine, Music
+  Wine, Music, Shield
 } from 'lucide-react';
 import { VideoPlayer } from './components/VideoRecorder';
 import { CameraViewer, CameraGridView } from './components/CameraViewer';
 import TrainingImageManager from './components/TrainingImageManager';
+import AlertsDashboard from './components/AlertsDashboard';
 import posService from './services/posIntegration';
 import cameraService from './services/cameraIntegration';
 import aiDetectionService from './services/aiDetection';
@@ -732,6 +733,17 @@ export default function App() {
                   {videoClips.filter(c => c.status === 'Suspicious').length}
                 </span>
               )}
+            </button>
+            <button
+              onClick={() => setActiveView(activeView === 'alerts' ? 'dashboard' : 'alerts')}
+              className={`w-full flex items-center px-4 py-3 rounded-xl transition-all duration-200 ${
+                activeView === 'alerts'
+                  ? 'bg-amber-500/10 text-amber-400 border border-amber-500/30 font-bold'
+                  : 'text-slate-400 hover:bg-slate-800 hover:text-slate-200'
+              }`}
+            >
+              <Shield className={`w-5 h-5 mr-3 ${activeView === 'alerts' ? 'text-amber-400' : 'text-slate-500'}`} />
+              <span>AI Alerts</span>
             </button>
             <button
               onClick={() => setActiveView(activeView === 'cameras' ? 'dashboard' : 'cameras')}
@@ -1536,6 +1548,18 @@ export default function App() {
                   </div>
                 )}
               </div>
+            </div>
+          ) : activeView === 'alerts' ? (
+            <div className="space-y-6">
+              <div className="flex items-center justify-between">
+                <h2 className="text-2xl font-bold text-white">AI Alerts Dashboard</h2>
+                <div className="flex items-center gap-2">
+                  <span className="text-xs text-slate-400">
+                    Live feed from all sectors
+                  </span>
+                </div>
+              </div>
+              <AlertsDashboard sectors={modules} onClose={() => setActiveView('dashboard')} />
             </div>
           ) : activeView === 'clips' ? (
             <div className="space-y-6">

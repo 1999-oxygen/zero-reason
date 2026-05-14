@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
-import { BrainCircuit, Eye, EyeOff, Crosshair, AlertTriangle } from 'lucide-react';
+import { BrainCircuit, Eye, EyeOff, Crosshair, AlertTriangle, Cpu, Loader2, Zap } from 'lucide-react';
+import { mlModelService } from '../services/mlModelService';
 
 // Simulated detection data generator based on sector
 function generateMockDetections(sectorId, width, height) {
@@ -77,12 +78,26 @@ export function AIDetectionOverlay({ camera, sectorConfig, enabled = true }) {
   const [detections, setDetections] = useState([]);
   const [showOverlay, setShowOverlay] = useState(true);
   const [containerSize, setContainerSize] = useState({ width: 640, height: 360 });
+  const [modelStatus, setModelStatus] = useState({ status: 'unloaded', error: null });
+  const [useCustomModel, setUseCustomModel] = useState(false);
+  const [isLoadingModel, setIsLoadingModel] = useState(false);
   const containerRef = useRef(null);
   const intervalRef = useRef(null);
 
   const sectorId = camera?.module || 'retail';
   const colors = getSectorColors(sectorId);
   const isEnabled = enabled && sectorConfig?.enabled !== false;
+  const hasModelUrl = !!sectorConfig?.mlModelUrl;
+
+  // Subscribe to model state changes
+  useEffect(() => {
+    const unsubscribe = mlModelService.subscribeToState(sectorId, (state) => {
+      setModelStatus(state);
+    });
+    // Get initial state
+    setModelStatus(mlModelService.getModelStatus(sectorId));
+    return unsubscribe;
+  }, [sectorId]);
 
   // Update container size
   useEffect(() => {
@@ -97,6 +112,21 @@ export function AIDetectionOverlay({ camera, sectorConfig, enabled = true }) {
     return () => window.removeEventListener('resize', updateSize);
   }, []);
 
+  // Load custom model
+  const handleLoadModel = async () => {
+    if (!sectorConfig?.mlModelUrl) return;
+    setIsLoadingModel(true);
+    await mlModelService.loadModel(sectorId, sectorConfig.mlModelUrl, sectorConfig.mlModelType || 'roboflow');
+    setUseCustomModel(true);
+    setIsLoadingModel(false);
+  };
+
+  // Unload custom model
+  const handleUnloadModel = () => {
+    mlModelService.unloadModel(sectorId);
+    setUseCustomModel(false);
+  };
+
   // Generate detections periodically
   useEffect(() => {
     if (!isEnabled || !showOverlay) {
@@ -104,8 +134,28 @@ export function AIDetectionOverlay({ camera, sectorConfig, enabled = true }) {
       return;
     }
 
-    const updateDetections = () => {
-      const baseDetections = generateMockDetections(sectorId, containerSize.width, containerSize.height);
+    const updateDetections = async () => {
+      let baseDetections;
+
+      // If custom model is loaded and user wants to use it
+      if (useCustomModel && modelStatus.status === 'ready') {
+        const inferenceResult = await mlModelService.runInference(sectorId, null);
+        if (inferenceResult) {
+          baseDetections = inferenceResult.map(d => ({
+            ...d,
+            bbox: [
+              d.bbox[0] * (containerSize.width / 640),
+              d.bbox[1] * (containerSize.height / 360),
+              d.bbox[2] * (containerSize.width / 640),
+              d.bbox[3] * (containerSize.height / 360)
+            ]
+          }));
+        } else {
+          baseDetections = generateMockDetections(sectorId, containerSize.width, containerSize.height);
+        }
+      } else {
+        baseDetections = generateMockDetections(sectorId, containerSize.width, containerSize.height);
+      }
       
       // Add slight randomization to positions for "live" feel
       const jittered = baseDetections.map(d => {
@@ -131,7 +181,7 @@ export function AIDetectionOverlay({ camera, sectorConfig, enabled = true }) {
     return () => {
       if (intervalRef.current) clearInterval(intervalRef.current);
     };
-  }, [isEnabled, showOverlay, sectorId, containerSize.width, containerSize.height]);
+  }, [isEnabled, showOverlay, sectorId, containerSize.width, containerSize.height, useCustomModel, modelStatus.status]);
 
   const alertCount = detections.filter(d => d.severity === 'alert').length;
   const warningCount = detections.filter(d => d.severity === 'warning').length;
@@ -139,7 +189,7 @@ export function AIDetectionOverlay({ camera, sectorConfig, enabled = true }) {
   return (
     <div ref={containerRef} className="absolute inset-0 pointer-events-none">
       {/* AI Toggle Button */}
-      <div className="absolute top-3 left-3 z-20 pointer-events-auto">
+      <div className="absolute top-3 left-3 z-20 pointer-events-auto flex items-center gap-2">
         <button
           onClick={() => setShowOverlay(!showOverlay)}
           className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold border transition-all ${
@@ -154,6 +204,35 @@ export function AIDetectionOverlay({ camera, sectorConfig, enabled = true }) {
             <><EyeOff className="w-3.5 h-3.5" /> AI Off</>
           )}
         </button>
+
+        {/* Model Toggle - only if URL configured */}
+        {hasModelUrl && showOverlay && isEnabled && (
+          <button
+            onClick={() => {
+              if (useCustomModel) {
+                handleUnloadModel();
+              } else {
+                handleLoadModel();
+              }
+            }}
+            disabled={isLoadingModel}
+            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold border transition-all pointer-events-auto ${
+              useCustomModel && modelStatus.status === 'ready'
+                ? 'bg-emerald-500/20 text-emerald-400 border-emerald-500/50 backdrop-blur-sm'
+                : isLoadingModel
+                  ? 'bg-amber-500/20 text-amber-400 border-amber-500/50 backdrop-blur-sm'
+                  : 'bg-slate-900/80 text-slate-300 border-slate-700/50 backdrop-blur-sm hover:bg-blue-500/10'
+            }`}
+          >
+            {isLoadingModel ? (
+              <><Loader2 className="w-3.5 h-3.5 animate-spin" /> Loading...</>
+            ) : useCustomModel && modelStatus.status === 'ready' ? (
+              <><Cpu className="w-3.5 h-3.5" /> Custom Model</>
+            ) : (
+              <><Zap className="w-3.5 h-3.5" /> Load Model</>
+            )}
+          </button>
+        )}
       </div>
 
       {/* Alert Badge */}
@@ -169,6 +248,13 @@ export function AIDetectionOverlay({ camera, sectorConfig, enabled = true }) {
         <div className="absolute top-3 right-3 z-20 flex items-center gap-1.5 px-3 py-1.5 bg-amber-500/90 rounded-lg text-xs font-semibold text-white backdrop-blur-sm">
           <AlertTriangle className="w-3.5 h-3.5" />
           {warningCount} Warning{warningCount > 1 ? 's' : ''}
+        </div>
+      )}
+
+      {/* Model Status Indicator */}
+      {showOverlay && isEnabled && modelStatus.status === 'error' && (
+        <div className="absolute bottom-3 left-3 z-20 px-3 py-1.5 bg-red-500/90 rounded-lg text-xs text-white backdrop-blur-sm">
+          Model Error: {modelStatus.error}
         </div>
       )}
 

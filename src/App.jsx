@@ -11,6 +11,7 @@ import { VideoPlayer } from './components/VideoRecorder';
 import { CameraViewer, CameraGridView } from './components/CameraViewer';
 import TrainingImageManager from './components/TrainingImageManager';
 import AlertsDashboard from './components/AlertsDashboard';
+import LiquorStoreDashboard from './components/LiquorStoreDashboard';
 import posService from './services/posIntegration';
 import cameraService from './services/cameraIntegration';
 import aiDetectionService from './services/aiDetection';
@@ -455,47 +456,7 @@ export default function App() {
         );
 
       case 'liquor':
-        return (
-          <div className="space-y-6 animate-in fade-in">
-            <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-              <StatCard title="Customers Today" value="156" icon={Users} color="blue" />
-              <StatCard title="Premium Items Tracked" value="48" icon={Wine} color="amber" />
-              <StatCard title="Theft Alerts" value="3" icon={AlertTriangle} color="red" alert />
-              <StatCard title="Age Verifications" value="12" icon={ShieldAlert} color="emerald" />
-            </div>
-            <div className="flex gap-6 h-[400px]">
-              <div className="flex-1 bg-slate-900 rounded-2xl border border-slate-800 overflow-hidden relative">
-                <div className="absolute inset-0 bg-[url('https://images.unsplash.com/photo-1572116469696-31de0f17cc34?q=80&w=1974&auto=format&fit=crop')] bg-cover bg-center opacity-40"></div>
-                {/* Liquor Bottle Detection */}
-                <div className="absolute top-1/4 right-1/3 w-32 h-48 border-2 border-amber-500 bg-amber-500/20 rounded-lg">
-                  <div className="absolute -top-12 left-[-2px] bg-amber-500 text-slate-900 text-[10px] font-bold px-2 py-1 rounded flex flex-col">
-                    <span>Premium Whiskey</span>
-                    <span>Value: $450</span>
-                    <span>Tracked: Active</span>
-                  </div>
-                </div>
-                {/* Concealment Detection */}
-                <div className="absolute top-1/3 left-1/4 w-48 h-64 border-2 border-red-500 bg-red-500/10 rounded-lg">
-                  <div className="absolute -top-10 left-[-2px] bg-red-500 text-white text-[10px] font-bold px-2 py-1 rounded flex flex-col">
-                    <span>Wine Bottle (Unpaid)</span>
-                    <span>Action: Concealed in Jacket</span>
-                  </div>
-                  <svg className="absolute inset-0 w-full h-full pointer-events-none" viewBox="0 0 100 100">
-                    <path d="M 50 30 L 50 70" stroke="red" strokeWidth="2" strokeDasharray="4" className="animate-pulse" />
-                    <circle cx="50" cy="70" r="4" fill="red" />
-                  </svg>
-                </div>
-              </div>
-              <div className="w-80 bg-slate-900 rounded-2xl border border-slate-800 p-4 overflow-y-auto">
-                <h3 className="text-sm font-bold text-slate-400 uppercase mb-4">Liquor Store AI</h3>
-                <LogEntry time="14:22" title="Premium Item Tracked" desc="Glenfiddich 18 picked up from shelf." type="info" onAnalyze={handleAnalyzeIncident} />
-                <LogEntry time="14:23" title="Age Check Required" desc="Customer appears under 25. Verification needed." type="warning" onAnalyze={handleAnalyzeIncident} />
-                <LogEntry time="14:25" title="Concealment Detected" desc="Wine bottle moved to jacket area." type="danger" onAnalyze={handleAnalyzeIncident} />
-                <LogEntry time="14:26" title="THEFT ALERT" desc="Subject heading to exit without payment." type="danger" onAnalyze={handleAnalyzeIncident} />
-              </div>
-            </div>
-          </div>
-        );
+        return <LiquorStoreDashboard />;
 
       case 'clubs':
         return (

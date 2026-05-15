@@ -143,7 +143,7 @@ class SectorAIBrain:
         if not self._mock_mode and SUPERVISION_AVAILABLE:
             poly = np.array(zone_config.polygon)
             self.zone_objects.append(sv.PolygonZone(
-                polygon=poly, frame_resolution_wh=self.resolution
+                polygon=poly
             ))
         else:
             self.zone_objects.append(None)

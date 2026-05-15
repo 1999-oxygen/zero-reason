@@ -320,10 +320,16 @@ export default function App() {
   };
 
   // --- CAMERA MANAGEMENT HANDLERS ---
-  const initializeCameras = () => {
-    // Load mock cameras for demo
-    const mockCameras = cameraService.getMockCameras();
-    setCameras(mockCameras);
+  const initializeCameras = async () => {
+    // Try to load real cameras from backend first
+    const serviceCameras = cameraService.getCameras();
+    if (serviceCameras && serviceCameras.length > 0) {
+      setCameras(serviceCameras);
+    } else {
+      // Fallback to mock cameras for demo
+      const mockCameras = cameraService.getMockCameras();
+      setCameras(mockCameras);
+    }
   };
 
   const handleAddCamera = () => {
@@ -1005,7 +1011,10 @@ export default function App() {
                 <div className="flex items-center justify-between mb-4">
                   <h3 className="text-lg font-semibold text-white">Camera Management</h3>
                   <button
-                    onClick={() => setShowAddCamera(!showAddCamera)}
+                    onClick={() => {
+                      setNewCamera(prev => ({ ...prev, module: activeModule }));
+                      setShowAddCamera(!showAddCamera);
+                    }}
                     className="flex items-center px-4 py-2 bg-blue-500/10 hover:bg-blue-500/20 text-blue-400 rounded-lg border border-blue-500/30 transition-colors font-semibold"
                   >
                     <Plus className="w-4 h-4 mr-2" />

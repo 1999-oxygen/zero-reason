@@ -183,6 +183,7 @@ Possible issues:
                 ref={imgRef}
                 src={streamUrl}
                 alt={`${camera.name} feed`}
+                data-camera-id={camera.id}
                 className={`w-full h-full object-contain ${isLoading || error ? 'hidden' : ''}`}
                 onLoad={handleImageLoad}
                 onError={handleImageError}
@@ -249,6 +250,7 @@ export function CameraGridView({ cameras, onSelectCamera, sectorConfig }) {
               <img
                 src={camera.url}
                 alt={camera.name}
+                data-camera-id={camera.id}
                 className="w-full h-full object-cover"
                 onError={(e) => {
                   e.target.style.display = 'none';

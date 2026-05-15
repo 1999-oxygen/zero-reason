@@ -957,19 +957,19 @@ export default function App() {
                   <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                     <div className="bg-slate-950 p-4 rounded-lg">
                       <p className="text-xs text-slate-400 uppercase mb-1">Transactions</p>
-                      <p className="text-2xl font-bold text-white">{posStats.totalTransactions}</p>
+                      <p className="text-2xl font-bold text-white">{posStats.totalTransactions ?? 0}</p>
                     </div>
                     <div className="bg-slate-950 p-4 rounded-lg">
                       <p className="text-xs text-slate-400 uppercase mb-1">Revenue</p>
-                      <p className="text-2xl font-bold text-emerald-400">${posStats.totalRevenue.toFixed(2)}</p>
+                      <p className="text-2xl font-bold text-emerald-400">${(posStats.totalRevenue ?? 0).toFixed(2)}</p>
                     </div>
                     <div className="bg-slate-950 p-4 rounded-lg">
                       <p className="text-xs text-slate-400 uppercase mb-1">Avg Transaction</p>
-                      <p className="text-2xl font-bold text-blue-400">${posStats.averageTransaction.toFixed(2)}</p>
+                      <p className="text-2xl font-bold text-blue-400">${(posStats.averageTransaction ?? 0).toFixed(2)}</p>
                     </div>
                     <div className="bg-slate-950 p-4 rounded-lg">
                       <p className="text-xs text-slate-400 uppercase mb-1">Top Employee</p>
-                      <p className="text-sm font-bold text-purple-400">{posStats.topEmployee.name}</p>
+                      <p className="text-sm font-bold text-purple-400">{posStats.topEmployee?.name ?? 'N/A'}</p>
                     </div>
                   </div>
                 </div>

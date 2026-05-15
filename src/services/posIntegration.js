@@ -229,6 +229,8 @@ class POSIntegrationService {
           totalRevenue: summary.today_revenue || 0,
           totalProfit: summary.today_profit || 0,
           averageTransaction: summary.today_sales > 0 ? (summary.today_revenue / summary.today_sales) : 0,
+          topEmployee: { name: 'N/A', count: 0, revenue: 0 },
+          itemsSold: 0,
           source: 'backend'
         };
       } catch (e) {}

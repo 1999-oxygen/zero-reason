@@ -321,6 +321,8 @@ export default function App() {
 
   // --- CAMERA MANAGEMENT HANDLERS ---
   const initializeCameras = async () => {
+    // Wait for backend sync to complete
+    await cameraService._checkBackend();
     // Try to load real cameras from backend first
     const serviceCameras = cameraService.getCameras();
     if (serviceCameras && serviceCameras.length > 0) {
@@ -332,12 +334,12 @@ export default function App() {
     }
   };
 
-  const handleAddCamera = () => {
+  const handleAddCamera = async () => {
     let camera;
     
     switch (newCamera.type) {
       case 'webcam':
-        camera = cameraService.addCamera({
+        camera = await cameraService.addCamera({
           name: newCamera.name,
           type: 'webcam',
           location: newCamera.location,
@@ -346,7 +348,7 @@ export default function App() {
         break;
         
       case 'ip':
-        camera = cameraService.addCamera({
+        camera = await cameraService.addCamera({
           name: newCamera.name,
           type: 'ip',
           url: newCamera.url,
@@ -357,7 +359,7 @@ export default function App() {
         
       case 'phone':
         const phoneUrl = `http://${newCamera.phoneIP}:${newCamera.phonePort}/video`;
-        camera = cameraService.addCamera({
+        camera = await cameraService.addCamera({
           name: newCamera.name,
           type: 'phone',
           url: phoneUrl,
@@ -375,7 +377,7 @@ export default function App() {
         type: 'webcam',
         url: '',
         location: '',
-        module: 'retail',
+        module: activeModule,
         phoneIP: '',
         phonePort: '8080',
         phoneApp: 'ipwebcam'
@@ -383,8 +385,8 @@ export default function App() {
     }
   };
 
-  const handleRemoveCamera = (cameraId) => {
-    cameraService.removeCamera(cameraId);
+  const handleRemoveCamera = async (cameraId) => {
+    await cameraService.removeCamera(cameraId);
     setCameras(cameras.filter(c => c.id !== cameraId));
   };
 

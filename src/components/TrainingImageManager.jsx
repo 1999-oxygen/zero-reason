@@ -1,5 +1,6 @@
-import React, { useState, useRef, useCallback } from 'react';
+import React, { useState, useRef, useCallback, useEffect } from 'react';
 import { Upload, X, Image, Tag, Trash2, Grid, List, CheckCircle, AlertTriangle, FolderOpen } from 'lucide-react';
+import { api } from '../services/apiClient';
 
 export default function TrainingImageManager({ sectorConfig, sectorId, onImagesChange }) {
   const [dragOver, setDragOver] = useState(false);
@@ -8,9 +9,25 @@ export default function TrainingImageManager({ sectorConfig, sectorId, onImagesC
   const [labelInput, setLabelInput] = useState('');
   const [viewMode, setViewMode] = useState('grid'); // 'grid' | 'list'
   const [filterLabel, setFilterLabel] = useState('all');
+  const [backendImages, setBackendImages] = useState([]);
+  const [backendAvailable, setBackendAvailable] = useState(false);
   const fileInputRef = useRef(null);
 
-  const trainingImages = sectorConfig?.customDatabase?.trainingImages || [];
+  // Load images from backend on mount
+  useEffect(() => {
+    const loadBackendImages = async () => {
+      try {
+        const images = await api.get(`/api/training-images?sector_id=${sectorId}`);
+        setBackendImages(images || []);
+        setBackendAvailable(true);
+      } catch (e) {
+        setBackendAvailable(false);
+      }
+    };
+    if (sectorId) loadBackendImages();
+  }, [sectorId]);
+
+  const trainingImages = backendAvailable ? backendImages : (sectorConfig?.customDatabase?.trainingImages || []);
   const objectClasses = sectorConfig?.objectClasses || [];
 
   const getAllLabels = () => {
@@ -41,38 +58,57 @@ export default function TrainingImageManager({ sectorConfig, sectorId, onImagesC
     
     for (const file of imageFiles) {
       try {
-        const reader = new FileReader();
-        await new Promise((resolve, reject) => {
-          reader.onload = (e) => {
-            const imageData = e.target.result;
-            const newImage = {
-              id: `img_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
-              data: imageData,
-              name: file.name,
-              label: '',
-              timestamp: new Date().toISOString(),
-              size: file.size
+        if (backendAvailable) {
+          // Upload to backend
+          const formData = new FormData();
+          formData.append('file', file);
+          formData.append('sector_id', sectorId);
+          formData.append('label', '');
+          const result = await fetch('http://localhost:8000/api/training-images/upload', {
+            method: 'POST',
+            body: formData
+          });
+          if (result.ok) {
+            const data = await result.json();
+            // Reload images from backend
+            const images = await api.get(`/api/training-images?sector_id=${sectorId}`);
+            setBackendImages(images || []);
+          }
+        } else {
+          // Fallback: localStorage
+          const reader = new FileReader();
+          await new Promise((resolve, reject) => {
+            reader.onload = (e) => {
+              const imageData = e.target.result;
+              const newImage = {
+                id: `img_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+                data: imageData,
+                name: file.name,
+                label: '',
+                timestamp: new Date().toISOString(),
+                size: file.size
+              };
+              
+              // Add to sector config
+              const config = { ...sectorConfig };
+              if (!config.customDatabase) {
+                config.customDatabase = { trainingImages: [] };
+              }
+              if (!config.customDatabase.trainingImages) {
+                config.customDatabase.trainingImages = [];
+              }
+              config.customDatabase.trainingImages.push(newImage);
+              config.customDatabase.itemCount = config.customDatabase.trainingImages.length;
+              
+              if (onImagesChange) {
+                onImagesChange(config.customDatabase.trainingImages);
+              }
+              resolve();
             };
-            
-            // Add to sector config
-            const config = { ...sectorConfig };
-            if (!config.customDatabase) {
-              config.customDatabase = { trainingImages: [] };
-            }
-            if (!config.customDatabase.trainingImages) {
-              config.customDatabase.trainingImages = [];
-            }
-            config.customDatabase.trainingImages.push(newImage);
-            config.customDatabase.itemCount = config.customDatabase.trainingImages.length;
-            
-            if (onImagesChange) {
-              onImagesChange(config.customDatabase.trainingImages);
-            }
-            resolve();
-          };
-          reader.onerror = reject;
-          reader.readAsDataURL(file);
-        });
+            reader.onerror = reject;
+            reader.readAsDataURL(file);
+          });
+        }
       } catch (error) {
         console.error('Error processing file:', file.name, error);
       }
@@ -98,17 +134,28 @@ export default function TrainingImageManager({ sectorConfig, sectorId, onImagesC
     e.target.value = '';
   };
 
-  const handleDeleteImage = (imageId) => {
+  const handleDeleteImage = async (imageId) => {
     if (!confirm('Remove this training image?')) return;
     
-    const config = { ...sectorConfig };
-    config.customDatabase.trainingImages = config.customDatabase.trainingImages.filter(
-      img => img.id !== imageId
-    );
-    config.customDatabase.itemCount = config.customDatabase.trainingImages.length;
-    
-    if (onImagesChange) {
-      onImagesChange(config.customDatabase.trainingImages);
+    if (backendAvailable) {
+      try {
+        await api.delete(`/api/training-images/${imageId}`);
+        // Reload images from backend
+        const images = await api.get(`/api/training-images?sector_id=${sectorId}`);
+        setBackendImages(images || []);
+      } catch (e) {
+        console.error('Failed to delete image:', e);
+      }
+    } else {
+      const config = { ...sectorConfig };
+      config.customDatabase.trainingImages = config.customDatabase.trainingImages.filter(
+        img => img.id !== imageId
+      );
+      config.customDatabase.itemCount = config.customDatabase.trainingImages.length;
+      
+      if (onImagesChange) {
+        onImagesChange(config.customDatabase.trainingImages);
+      }
     }
     
     if (selectedImage?.id === imageId) {
@@ -292,7 +339,7 @@ export default function TrainingImageManager({ sectorConfig, sectorId, onImagesC
                 onClick={() => setSelectedImage(img)}
               >
                 <img 
-                  src={img.data} 
+                  src={backendAvailable ? `http://localhost:8000/api/training-images/${img.id}` : img.data} 
                   alt={img.name || 'Training image'}
                   className="w-full h-full object-cover cursor-pointer"
                 />
@@ -373,7 +420,7 @@ export default function TrainingImageManager({ sectorConfig, sectorId, onImagesC
               {/* Image Preview */}
               <div className="flex-1 bg-slate-950 p-4">
                 <img 
-                  src={selectedImage.data} 
+                  src={backendAvailable ? `http://localhost:8000/api/training-images/${selectedImage.id}` : selectedImage.data} 
                   alt="Preview" 
                   className="w-full max-h-[300px] object-contain rounded-lg"
                 />

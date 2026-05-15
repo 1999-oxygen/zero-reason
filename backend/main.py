@@ -8,6 +8,7 @@ Run:  python main.py
 """
 import asyncio
 import json
+import os
 from pathlib import Path
 from datetime import datetime
 from typing import List, Optional
@@ -16,6 +17,15 @@ from fastapi import FastAPI, WebSocket, WebSocketDisconnect, UploadFile, File, F
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse, StreamingResponse
 import uvicorn
+
+# Environment configuration
+PORT = int(os.getenv("PORT", 8000))
+ENVIRONMENT = os.getenv("ENVIRONMENT", "development")
+ALLOWED_ORIGINS = os.getenv("ALLOWED_ORIGINS", "").split(",") if os.getenv("ALLOWED_ORIGINS") else [
+    "http://localhost:5173",
+    "http://localhost:3000",
+    "https://1999-oxygen.github.io"
+]
 
 # Optional heavy imports — backend works without them (mock mode)
 try:
@@ -47,7 +57,7 @@ app = FastAPI(title="OmniVision Edge Server", version="2.0.0")
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=ALLOWED_ORIGINS if ENVIRONMENT == "production" else ["*"],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -453,4 +463,4 @@ if __name__ == "__main__":
 ║                                                              ║
 ╚══════════════════════════════════════════════════════════════╝
     """)
-    uvicorn.run(app, host="0.0.0.0", port=8000)
+    uvicorn.run(app, host="0.0.0.0", port=PORT)

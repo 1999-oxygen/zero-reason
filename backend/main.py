@@ -13,7 +13,7 @@ from pathlib import Path
 from datetime import datetime
 from typing import List, Optional
 
-from fastapi import FastAPI, WebSocket, WebSocketDisconnect, UploadFile, File, Form, Request
+from fastapi import FastAPI, WebSocket, WebSocketDisconnect, UploadFile, File, Form
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse, StreamingResponse
 import uvicorn
@@ -63,13 +63,6 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# Add COOP header for Google Sign-In popup support
-@app.middleware("http")
-async def add_coop_header(request: Request, call_next):
-    response = await call_next(request)
-    response.headers["Cross-Origin-Opener-Policy"] = "same-origin-allow-popups"
-    return response
-
 # Initialize DB + demo data on startup
 db.init_database()
 db.seed_demo_data()
@@ -89,19 +82,6 @@ brain_mgr = BrainManager() if AI_BRAIN_AVAILABLE else None
 # ═══════════════════════════════════════════════════════════════
 #  HEALTH & STATUS
 # ═══════════════════════════════════════════════════════════════
-
-@app.get("/")
-def root():
-    """Root endpoint - redirects to health check"""
-    return {
-        "service": "OmniVision Backend",
-        "version": "2.0.0",
-        "status": "running",
-        "health_check": "/api/health",
-        "api_docs": "/docs",
-        "message": "Welcome to OmniVision API"
-    }
-
 
 @app.get("/api/health")
 def health():

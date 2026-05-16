@@ -12,12 +12,11 @@ import { CameraViewer, CameraGridView } from './components/CameraViewer';
 import TrainingImageManager from './components/TrainingImageManager';
 import AlertsDashboard from './components/AlertsDashboard';
 import LiquorStoreDashboard from './components/LiquorStoreDashboard';
-import GoogleAuth from './components/GoogleAuth';
+import AccessCodeGate from './components/AccessCodeGate';
 import posService from './services/posIntegration';
 import cameraService from './services/cameraIntegration';
 import aiDetectionService from './services/aiDetection';
 import sectorAIConfig from './services/sectorAIConfig';
-import authService from './services/authService';
 
 // --- AI API INTEGRATION (via Netlify Function) ---
 const callGeminiAPI = async (prompt) => {
@@ -84,6 +83,37 @@ export default function App() {
   const [posTransactions, setPosTransactions] = useState([]);
   const [posStats, setPosStats] = useState(null);
 
+  // Authentication State
+  const [user, setUser] = useState(null);
+  const [isAuthenticated, setIsAuthenticated] = useState(false);
+
+  // Access Code Verification State
+  const [accessVerified, setAccessVerified] = useState(false);
+
+  // Handle authentication changes
+  const handleAuthChange = (userData) => {
+    setUser(userData);
+    setIsAuthenticated(!!userData);
+    // Reload user-specific data when authentication changes
+    if (userData) {
+      loadUserData();
+    }
+  };
+
+  // Handle access code verification
+  const handleAccessVerified = () => {
+    setAccessVerified(true);
+    sessionStorage.setItem('access_verified', 'true');
+  };
+
+  // Check if access code is already verified in session
+  useEffect(() => {
+    const verified = sessionStorage.getItem('access_verified');
+    if (verified === 'true') {
+      setAccessVerified(true);
+    }
+  }, []);
+
   // Camera Configuration State
   const [cameras, setCameras] = useState([]);
   const [showAddCamera, setShowAddCamera] = useState(false);
@@ -107,45 +137,10 @@ export default function App() {
     autoRecordSuspicious: true
   });
   const [aiInitialized, setAiInitialized] = useState(false);
-
-  // Authentication State
-  const [user, setUser] = useState(null);
-  const [isAuthenticated, setIsAuthenticated] = useState(false);
-
+  
   // Sector-Specific AI Configuration State
   const [sectorConfigs, setSectorConfigs] = useState(sectorAIConfig.getAllSectorConfigs());
   const [selectedSectorForConfig, setSelectedSectorForConfig] = useState(null);
-
-  // Handle authentication changes
-  const handleAuthChange = (userData) => {
-    setUser(userData);
-    setIsAuthenticated(!!userData);
-    // Reload user-specific data when authentication changes
-    if (userData) {
-      loadUserData();
-    }
-  };
-
-  // Load user-specific data when authenticated
-  const loadUserData = async () => {
-    try {
-      if (!authService.isAuthenticated()) return;
-
-      // Load user's cameras
-      const userCameras = await authService.get(`${import.meta.env.VITE_API_URL || 'https://omnivision-backend-608881410748.us-central1.run.app'}/api/auth/user/cameras`);
-      if (userCameras) {
-        // Update camera service with user's cameras
-      }
-
-      // Load user's sector configs
-      const userSectors = await authService.get(`${import.meta.env.VITE_API_URL || 'https://omnivision-backend-608881410748.us-central1.run.app'}/api/auth/user/sectors`);
-      if (userSectors) {
-        // Update sector configs with user's data
-      }
-    } catch (e) {
-      console.error('Failed to load user data:', e);
-    }
-  };
 
   // Define the different industry modules
   const modules = [
@@ -689,9 +684,14 @@ export default function App() {
   };
 
   return (
-    <div className="flex h-screen bg-slate-950 text-slate-300 font-sans">
-      {/* NEW ZERO Sidebar */}
-      <aside className="w-64 bg-slate-900 border-r border-slate-800 flex flex-col z-20">
+    <>
+      {/* Access Code Gate */}
+      {!accessVerified && <AccessCodeGate onVerified={handleAccessVerified} />}
+
+      {/* Main App */}
+      <div className="flex h-screen bg-slate-950 text-slate-300 font-sans">
+        {/* NEW ZERO Sidebar */}
+        <aside className="w-64 bg-slate-900 border-r border-slate-800 flex flex-col z-20">
         <div className="h-16 flex items-center px-6 border-b border-slate-800">
           <div className="w-8 h-8 bg-gradient-to-br from-blue-500 to-purple-600 rounded-lg flex items-center justify-center mr-3 shadow-lg">
             <BrainCircuit className="w-5 h-5 text-white" />
@@ -761,9 +761,9 @@ export default function App() {
             >
               <Camera className={`w-5 h-5 mr-3 ${activeView === 'cameras' ? 'text-blue-400' : 'text-slate-500'}`} />
               <span>Live Cameras</span>
-              {cameras.filter(c => c.status === 'online').length > 0 && (
+              {cameras.length > 0 && (
                 <span className="ml-auto bg-emerald-500 text-white text-xs px-2 py-0.5 rounded-full">
-                  {cameras.filter(c => c.status === 'online').length}
+                  {cameras.length}
                 </span>
               )}
             </button>
@@ -818,7 +818,7 @@ export default function App() {
               <span className="absolute top-1.5 right-1.5 w-2 h-2 bg-red-500 rounded-full animate-pulse"></span>
             </button>
             <div className="flex items-center pl-4 border-l border-slate-800">
-              <GoogleAuth onAuthChange={handleAuthChange} />
+              <div className="w-8 h-8 bg-blue-600 rounded-full flex items-center justify-center text-white text-xs font-bold">Admin</div>
             </div>
           </div>
         </header>
@@ -1702,12 +1702,13 @@ export default function App() {
 
       {/* Camera Viewer Modal */}
       {selectedCamera && (
-        <CameraViewer 
+        <CameraViewer
           camera={selectedCamera}
           onClose={() => setSelectedCamera(null)}
         />
       )}
-    </div>
+      </div>
+    </>
   );
 }
 

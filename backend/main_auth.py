@@ -5,6 +5,7 @@ Add these to main.py
 from fastapi import APIRouter, HTTPException, Depends, Header
 from pydantic import BaseModel
 from typing import Optional
+import os
 import auth
 import database_users as db_users
 
@@ -27,6 +28,15 @@ class UserResponse(BaseModel):
     name: Optional[str]
     picture: Optional[str]
     jwt_token: str
+
+
+class AccessCodeRequest(BaseModel):
+    access_code: str
+
+
+class AccessCodeResponse(BaseModel):
+    valid: bool
+    message: str
 
 
 # ============ AUTH DEPENDENCY ============
@@ -138,6 +148,18 @@ async def save_user_camera(
     """Save camera for current user"""
     saved = db_users.save_user_camera(user_id, camera)
     return saved
+
+
+@router.post("/verify-access-code")
+async def verify_access_code(request: AccessCodeRequest):
+    """Verify access code for app access"""
+    # Get the access code from environment variable or database
+    valid_code = os.getenv("APP_ACCESS_CODE", "OMNI2024")
+    
+    if request.access_code == valid_code:
+        return {"valid": True, "message": "Access code verified"}
+    else:
+        return {"valid": False, "message": "Invalid access code"}
 
 
 @router.delete("/user/cameras/{camera_id}")

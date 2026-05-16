@@ -1,11 +1,5 @@
 import { api } from './apiClient';
 import { API_BASE_URL } from '../config';
-import authService from './authService';
-
-// Helper to get user-specific endpoint if authenticated
-const getUserEndpoint = (endpoint) => {
-  return authService.isAuthenticated() ? endpoint.replace('/api/', '/api/auth/user/') : endpoint;
-};
 
 // Camera Integration Service
 // Supports: Webcam, IP Cameras (RTSP/HTTP), Phone Cameras (IP Webcam, DroidCam)
@@ -28,6 +22,12 @@ class CameraIntegrationService {
         const remote = await api.get(endpoint);
         if (remote && remote.length > 0) {
           this.cameras = remote;
+        } else if (!authService.isAuthenticated()) {
+          // Only load demo cameras if not authenticated
+          this.cameras = this.getMockCameras();
+        } else {
+          // Authenticated but no cameras - start with empty list
+          this.cameras = [];
         }
       }
     } catch (e) {
@@ -43,25 +43,30 @@ class CameraIntegrationService {
       type: config.type, // 'webcam', 'ip', 'phone'
       url: config.url || null,
       username: config.username || null,
+      password: config.password || null,
+      location: config.location || 'Unknown',
+      module: config.module || 'retail', // Which AI module to use
+      status: 'offline'
     };
+
     this.cameras.push(camera);
+    // Sync to backend
     if (this.backendAvailable) {
-      try {
-        const endpoint = getUserEndpoint('/api/cameras');
-        await api.post(endpoint, camera);
-      } catch (e) {}
+      try { await api.post('/api/cameras', camera); } catch (e) {}
     }
     return camera;
   }
 
-  // Remove a camera configuration
+  // Remove a camera
   async removeCamera(cameraId) {
-    this.cameras = this.cameras.filter(c => c.id !== cameraId);
-    if (this.backendAvailable) {
-      try {
-        const endpoint = getUserEndpoint(`/api/cameras/${cameraId}`);
-        await api.delete(endpoint);
-      } catch (e) {}
+    const index = this.cameras.findIndex(c => c.id === cameraId);
+    if (index > -1) {
+      this.stopCamera(cameraId);
+      this.cameras.splice(index, 1);
+      if (this.backendAvailable) {
+        try { await api.delete(`/api/cameras/${cameraId}`); } catch (e) {}
+      }
+      return true;
     }
     return false;
   }
@@ -69,6 +74,47 @@ class CameraIntegrationService {
   // Get all cameras
   getCameras() {
     return this.cameras;
+  }
+
+  // Update camera status based on live connection
+  updateCameraStatus(cameraId, status) {
+    const camera = this.cameras.find(c => c.id === cameraId);
+    if (camera) {
+      camera.status = status;
+      camera.lastUpdated = new Date().toISOString();
+    }
+  }
+
+  // Check if camera is live by testing connection
+  async checkCameraLive(cameraId) {
+    const camera = this.cameras.find(c => c.id === cameraId);
+    if (!camera) return false;
+
+    try {
+      if (camera.type === 'webcam') {
+        // Check if webcam stream is active
+        const stream = this.activeStreams.get(cameraId);
+        if (stream) {
+          const tracks = stream.getVideoTracks();
+          if (tracks.length > 0 && tracks[0].readyState === 'live') {
+            this.updateCameraStatus(cameraId, 'online');
+            return true;
+          }
+        }
+        this.updateCameraStatus(cameraId, 'offline');
+        return false;
+      } else if (camera.type === 'ip' || camera.type === 'phone') {
+        // Try to fetch from camera URL
+        const response = await fetch(camera.url, { method: 'HEAD', mode: 'no-cors' });
+        this.updateCameraStatus(cameraId, 'online');
+        return true;
+      }
+      this.updateCameraStatus(cameraId, 'offline');
+      return false;
+    } catch (error) {
+      this.updateCameraStatus(cameraId, 'offline');
+      return false;
+    }
   }
 
   // Start a webcam stream
@@ -166,30 +212,18 @@ class CameraIntegrationService {
   stopCamera(cameraId) {
     const stream = this.activeStreams.get(cameraId);
     if (stream) {
-      // If it's a MediaStream (webcam), stop all tracks
       if (stream instanceof MediaStream) {
         stream.getTracks().forEach(track => track.stop());
       }
-      // For IP/Phone cameras (URL strings), just remove the reference
       this.activeStreams.delete(cameraId);
-      this.updateCameraStatus(cameraId, 'offline');
-      return true;
     }
-    return false;
+    this.updateCameraStatus(cameraId, 'offline');
+    return true;
   }
 
   // Get active stream for a camera
   getStream(cameraId) {
     return this.activeStreams.get(cameraId);
-  }
-
-  // Update camera status
-  updateCameraStatus(cameraId, status) {
-    const camera = this.cameras.find(c => c.id === cameraId);
-    if (camera) {
-      camera.status = status;
-      camera.lastUpdated = new Date().toISOString();
-    }
   }
 
   // Get camera by ID

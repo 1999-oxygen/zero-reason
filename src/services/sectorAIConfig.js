@@ -1,11 +1,5 @@
 import { api } from './apiClient';
 import { API_BASE_URL } from '../config';
-import authService from './authService';
-
-// Helper to get user-specific endpoint if authenticated
-const getUserEndpoint = (endpoint) => {
-  return authService.isAuthenticated() ? endpoint.replace('/api/', '/api/auth/user/') : endpoint;
-};
 
 class SectorAIConfigService {
   constructor() {
@@ -24,6 +18,9 @@ class SectorAIConfigService {
         const remote = await api.get(endpoint);
         if (remote && Object.keys(remote).length > 0) {
           this.sectorConfigs = { ...this.sectorConfigs, ...remote };
+        } else if (authService.isAuthenticated()) {
+          // Authenticated but no configs - keep default configs but they won't be saved to backend
+          // User can customize and they will be saved
         }
       }
     } catch (e) {
@@ -160,13 +157,10 @@ class SectorAIConfigService {
 
   async saveConfigs() {
     localStorage.setItem('sectorAIConfigs', JSON.stringify(this.sectorConfigs));
-    // Sync to backend if available using user-specific endpoint if authenticated
+    // Sync to backend if available
     if (this.backendAvailable) {
       for (const [id, cfg] of Object.entries(this.sectorConfigs)) {
-        try {
-          const endpoint = getUserEndpoint(`/api/sectors/${id}`);
-          await api.post(endpoint, cfg);
-        } catch (e) {}
+        try { await api.post(`/api/sectors/${id}`, cfg); } catch (e) {}
       }
     }
   }

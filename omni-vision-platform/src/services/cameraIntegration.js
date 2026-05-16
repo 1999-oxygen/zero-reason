@@ -1,6 +1,3 @@
-import { api } from './apiClient';
-import { API_BASE_URL } from '../config';
-
 // Camera Integration Service
 // Supports: Webcam, IP Cameras (RTSP/HTTP), Phone Cameras (IP Webcam, DroidCam)
 
@@ -8,28 +5,10 @@ class CameraIntegrationService {
   constructor() {
     this.cameras = [];
     this.activeStreams = new Map();
-    this.backendAvailable = false;
-    this._checkBackend();
-  }
-
-  async _checkBackend() {
-    try {
-      const res = await fetch(`${API_BASE_URL}/api/health`, { method: 'GET', mode: 'cors' });
-      if (res.ok) {
-        this.backendAvailable = true;
-        // Sync cameras from backend
-        const remote = await api.get('/api/cameras');
-        if (remote && remote.length > 0) {
-          this.cameras = remote;
-        }
-      }
-    } catch (e) {
-      this.backendAvailable = false;
-    }
   }
 
   // Add a camera configuration
-  async addCamera(config) {
+  addCamera(config) {
     const camera = {
       id: config.id || `cam_${Date.now()}`,
       name: config.name || 'Unnamed Camera',
@@ -43,22 +22,15 @@ class CameraIntegrationService {
     };
 
     this.cameras.push(camera);
-    // Sync to backend
-    if (this.backendAvailable) {
-      try { await api.post('/api/cameras', camera); } catch (e) {}
-    }
     return camera;
   }
 
   // Remove a camera
-  async removeCamera(cameraId) {
+  removeCamera(cameraId) {
     const index = this.cameras.findIndex(c => c.id === cameraId);
     if (index > -1) {
       this.stopCamera(cameraId);
       this.cameras.splice(index, 1);
-      if (this.backendAvailable) {
-        try { await api.delete(`/api/cameras/${cameraId}`); } catch (e) {}
-      }
       return true;
     }
     return false;
@@ -122,37 +94,38 @@ class CameraIntegrationService {
   // Start a phone camera stream (IP Webcam or DroidCam)
   async startPhoneCamera(cameraId, phoneIP, port = null, app = 'ipwebcam') {
     try {
+      let streamUrl;
       let defaultPort;
       
-      // Determine default port based on app
       switch (app.toLowerCase()) {
         case 'ipwebcam':
+          // IP Webcam - Default port 8080
           defaultPort = port || 8080;
+          streamUrl = `http://${phoneIP}:${defaultPort}/video`;
           break;
         case 'droidcam':
+          // DroidCam - Default port 4747 (NOT 8080!)
           defaultPort = port || 4747;
+          streamUrl = `http://${phoneIP}:${defaultPort}/mjpegfeed`;
           break;
         case 'iriun':
+          // Iriun Webcam - Default port 8080
           defaultPort = port || 8080;
+          streamUrl = `http://${phoneIP}:${defaultPort}/video`;
           break;
         default:
+          // Generic MJPEG stream
           defaultPort = port || 8080;
+          streamUrl = `http://${phoneIP}:${defaultPort}/video`;
       }
 
-      // Use proxy server to avoid CORS and mixed content issues
-      // Python backend proxy
-      const proxyUrl = `${API_BASE_URL}/api/camera-stream?ip=${phoneIP}&port=${defaultPort}&app=${app}`;
-      
-      // Log both the original camera URL and proxy URL for debugging
-      const originalUrl = `http://${phoneIP}:${defaultPort}`;
-      console.log(`📹 Starting ${app} camera:`);
-      console.log(`   Original: ${originalUrl}`);
-      console.log(`   Via Proxy: ${proxyUrl}`);
+      // Log for debugging
+      console.log(`📹 Starting ${app} camera: ${streamUrl}`);
 
-      this.activeStreams.set(cameraId, proxyUrl);
+      this.activeStreams.set(cameraId, streamUrl);
       this.updateCameraStatus(cameraId, 'online');
       
-      return proxyUrl;
+      return streamUrl;
     } catch (error) {
       console.error('Error connecting to phone camera:', error);
       this.updateCameraStatus(cameraId, 'error');

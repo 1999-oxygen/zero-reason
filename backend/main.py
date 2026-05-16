@@ -57,7 +57,7 @@ app = FastAPI(title="OmniVision Edge Server", version="2.0.0")
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],  # Allow all origins for development
+    allow_origins=ALLOWED_ORIGINS,  # Use environment variable or defaults
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -82,6 +82,26 @@ brain_mgr = BrainManager() if AI_BRAIN_AVAILABLE else None
 # ═══════════════════════════════════════════════════════════════
 #  HEALTH & STATUS
 # ═══════════════════════════════════════════════════════════════
+
+@app.get("/")
+def root():
+    """Root endpoint - returns service information"""
+    return {
+        "service": "OmniVision Edge Server",
+        "version": "2.0.0",
+        "status": "running",
+        "endpoints": {
+            "health": "/api/health",
+            "sectors": "/api/sectors",
+            "cameras": "/api/cameras",
+            "alerts": "/api/alerts",
+            "pos": "/api/pos/products",
+            "training_images": "/api/training-images",
+            "websocket": "/ws/video_feed",
+            "docs": "/docs"
+        }
+    }
+
 
 @app.get("/api/health")
 def health():

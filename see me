@@ -1,0 +1,55 @@
+2026-05-14 20:53:52.310 [info] > git config --get commit.template [25ms]
+2026-05-14 20:53:52.324 [info] > git for-each-ref --format=%(refname)%00%(upstream:short)%00%(objectname)%00%(upstream:track)%00%(upstream:remotename)%00%(upstream:remoteref) --ignore-case refs/heads/main refs/remotes/main [34ms]
+2026-05-14 20:53:52.374 [info] > git for-each-ref --sort -committerdate --format %(refname)%00%(objectname)%00%(*objectname) [34ms]
+2026-05-14 20:53:52.391 [info] > git status -z -uall [55ms]
+2026-05-14 20:55:24.058 [info] > git config --get commit.template [41ms]
+2026-05-14 20:55:24.060 [info] > git config --get commit.template [47ms]
+2026-05-14 20:55:24.064 [info] > git for-each-ref --format=%(refname)%00%(upstream:short)%00%(objectname)%00%(upstream:track)%00%(upstream:remotename)%00%(upstream:remoteref) --ignore-case refs/heads/main refs/remotes/main [39ms]
+2026-05-14 20:55:24.090 [info] > git for-each-ref --format=%(refname)%00%(upstream:short)%00%(objectname)%00%(upstream:track)%00%(upstream:remotename)%00%(upstream:remoteref) --ignore-case refs/heads/main refs/remotes/main [69ms]
+2026-05-14 20:55:24.101 [info] > git status -z -uall [30ms]
+2026-05-14 20:55:24.102 [info] > git for-each-ref --sort -committerdate --format %(refname)%00%(objectname)%00%(*objectname) [27ms]
+2026-05-14 20:55:24.117 [info] > git for-each-ref --sort -committerdate --format %(refname)%00%(objectname)%00%(*objectname) [17ms]
+2026-05-14 20:55:24.118 [info] > git status -z -uall [22ms]
+2026-05-14 20:55:29.189 [info] > git config --get commit.template [77ms]
+2026-05-14 20:55:29.267 [info] > git config --get commit.template [100ms]
+2026-05-14 20:55:29.268 [info] > git for-each-ref --format=%(refname)%00%(upstream:short)%00%(objectname)%00%(upstream:track)%00%(upstream:remotename)%00%(upstream:remoteref) --ignore-case refs/heads/main refs/remotes/main [125ms]
+2026-05-14 20:55:29.291 [info] > git for-each-ref --format=%(refname)%00%(upstream:short)%00%(objectname)%00%(upstream:track)%00%(upstream:remotename)%00%(upstream:remoteref) --ignore-case refs/heads/main refs/remotes/main [63ms]
+2026-05-14 20:55:29.309 [info] > git status -z -uall [35ms]
+2026-05-14 20:55:29.311 [info] > git for-each-ref --sort -committerdate --format %(refname)%00%(objectname)%00%(*objectname) [25ms]
+2026-05-14 20:55:29.318 [info] > git status -z -uall [20ms]
+2026-05-14 20:55:29.324 [info] > git for-each-ref --sort -committerdate --format %(refname)%00%(objectname)%00%(*objectname) [19ms]
+2026-05-14 20:55:52.020 [info] > git fetch [976ms]
+2026-05-14 20:55:52.045 [info] > git config --get commit.template [19ms]
+2026-05-14 20:55:52.099 [info] > git for-each-ref --format=%(refname)%00%(upstream:short)%00%(objectname)%00%(upstream:track)%00%(upstream:remotename)%00%(upstream:remoteref) --ignore-case refs/heads/main refs/remotes/main [64ms]
+2026-05-14 20:55:52.130 [info] > git status -z -uall [21ms]
+2026-05-14 20:55:52.135 [info] > git for-each-ref --sort -committerdate --format %(refname)%00%(objectname)%00%(*objectname) [14ms]
+2026-05-14 20:55:53.032 [info] > git fetch [964ms]
+2026-05-14 20:55:53.055 [info] > git config --get commit.template [18ms]
+2026-05-14 20:55:53.090 [info] > git for-each-ref --format=%(refname)%00%(upstream:short)%00%(objectname)%00%(upstream:track)%00%(upstream:remotename)%00%(upstream:remoteref) --ignore-case refs/heads/main refs/remotes/main [46ms]
+2026-05-14 20:55:53.123 [info] > git for-each-ref --sort -committerdate --format %(refname)%00%(objectname)%00%(*objectname) [24ms]
+2026-05-14 20:55:53.133 [info] > git status -z -uall [37ms]
+2026-05-14 20:57:31.262 [info] > git log --oneline --cherry main...main@{upstream} -- [173ms]
+2026-05-14 20:57:32.536 [info] > git pull --tags origin main [1270ms]
+2026-05-14 20:57:32.536 [info] From https://github.com/1999-oxygen/zero-reason
+ * branch            main       -> FETCH_HEAD
+hint: You have divergent branches and need to specify how to reconcile them.
+hint: You can do so by running one of the following commands sometime before
+hint: your next pull:
+hint:
+hint:   git config pull.rebase false  # merge
+hint:   git config pull.rebase true   # rebase
+hint:   git config pull.ff only       # fast-forward only
+hint:
+hint: You can replace "git config" with "git config --global" to set a default
+hint: preference for all repositories. You can also pass --rebase, --no-rebase,
+hint: or --ff-only on the command line to override the configured default per
+hint: invocation.
+fatal: Need to specify how to reconcile divergent branches.
+2026-05-14 20:57:32.578 [info] > git config --get commit.template [33ms]
+2026-05-14 20:57:32.583 [info] > git for-each-ref --format=%(refname)%00%(upstream:short)%00%(objectname)%00%(upstream:track)%00%(upstream:remotename)%00%(upstream:remoteref) --ignore-case refs/heads/main refs/remotes/main [18ms]
+2026-05-14 20:57:32.609 [info] > git for-each-ref --sort -committerdate --format %(refname)%00%(objectname)%00%(*objectname) [17ms]
+2026-05-14 20:57:32.612 [info] > git status -z -uall [24ms]
+2026-05-14 20:57:33.639 [info] > git config --get commit.template [12ms]
+2026-05-14 20:57:33.650 [info] > git for-each-ref --format=%(refname)%00%(upstream:short)%00%(objectname)%00%(upstream:track)%00%(upstream:remotename)%00%(upstream:remoteref) --ignore-case refs/heads/main refs/remotes/main [20ms]
+2026-05-14 20:57:33.695 [info] > git status -z -uall [38ms]
+2026-05-14 20:57:33.701 [info] > git for-each-ref --sort -committerdate --format %(refname)%00%(objectname)%00%(*objectname) [34ms]

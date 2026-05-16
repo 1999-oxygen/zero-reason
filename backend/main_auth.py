@@ -7,6 +7,7 @@ from pydantic import BaseModel
 from typing import Optional
 import auth
 import database_users as db_users
+import os
 
 # Create router
 router = APIRouter()

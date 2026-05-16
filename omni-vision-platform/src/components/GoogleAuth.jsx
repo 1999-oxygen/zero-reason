@@ -1,7 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { LogIn, LogOut, User, Loader2 } from 'lucide-react';
-
-const GOOGLE_CLIENT_ID = "48750229292-ljj00ef6sv9lvjh5c2rmcromvgpt9ro7.apps.googleusercontent.com";
+import { API_BASE_URL, GOOGLE_CLIENT_ID } from '../config';
 
 export default function GoogleAuth({ onAuthChange }) {
   const [user, setUser] = useState(null);
@@ -29,7 +28,7 @@ export default function GoogleAuth({ onAuthChange }) {
     const token = localStorage.getItem('jwt_token');
     if (token) {
       try {
-        const response = await fetch('http://localhost:8000/api/auth/me', {
+        const response = await fetch(`${API_BASE_URL}/api/auth/me`, {
           headers: {
             'Authorization': `Bearer ${token}`
           }
@@ -77,7 +76,7 @@ export default function GoogleAuth({ onAuthChange }) {
 
     try {
       // Send Google token to backend
-      const res = await fetch('http://localhost:8000/api/auth/google', {
+      const res = await fetch(`${API_BASE_URL}/api/auth/google`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json'

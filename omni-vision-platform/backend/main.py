@@ -67,6 +67,14 @@ app.add_middleware(
 db.init_database()
 db.seed_demo_data()
 
+# Initialize user database tables
+import database_users as db_users
+db_users.init_user_tables()
+
+# Include authentication routes
+import main_auth
+app.include_router(main_auth.router, prefix="/api/auth", tags=["auth"])
+
 # Brain manager (one brain per active sector)
 brain_mgr = BrainManager() if AI_BRAIN_AVAILABLE else None
 

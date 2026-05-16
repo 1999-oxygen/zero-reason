@@ -2,11 +2,14 @@
 Authentication endpoints for OmniVision
 Add these to main.py
 """
-from fastapi import FastAPI, HTTPException, Depends, Header
+from fastapi import APIRouter, HTTPException, Depends, Header
 from pydantic import BaseModel
 from typing import Optional
 import auth
 import database_users as db_users
+
+# Create router
+router = APIRouter()
 
 # Initialize user tables
 db_users.init_user_tables()
@@ -54,7 +57,7 @@ def get_current_user(authorization: Optional[str] = Header(None)) -> int:
 
 # ============ AUTH ENDPOINTS ============
 
-@app.post("/api/auth/google", response_model=UserResponse)
+@router.post("/google", response_model=UserResponse)
 async def google_login(request: GoogleAuthRequest):
     """
     Authenticate user with Google OAuth token
@@ -81,7 +84,7 @@ async def google_login(request: GoogleAuthRequest):
     }
 
 
-@app.get("/api/auth/me")
+@router.get("/me")
 async def get_current_user_info(user_id: int = Depends(get_current_user)):
     """
     Get current user information
@@ -102,14 +105,14 @@ async def get_current_user_info(user_id: int = Depends(get_current_user)):
 
 # ============ USER-SPECIFIC DATA ENDPOINTS ============
 
-@app.get("/api/user/sectors")
+@router.get("/user/sectors")
 async def get_user_sectors(user_id: int = Depends(get_current_user)):
     """Get all sector configs for current user"""
     configs = db_users.get_user_sector_configs(user_id)
     return configs
 
 
-@app.post("/api/user/sectors/{sector_id}")
+@router.post("/user/sectors/{sector_id}")
 async def save_user_sector(
     sector_id: str,
     config: dict,
@@ -120,14 +123,14 @@ async def save_user_sector(
     return saved
 
 
-@app.get("/api/user/cameras")
+@router.get("/user/cameras")
 async def get_user_cameras_endpoint(user_id: int = Depends(get_current_user)):
     """Get all cameras for current user"""
     cameras = db_users.get_user_cameras(user_id)
     return cameras
 
 
-@app.post("/api/user/cameras")
+@router.post("/user/cameras")
 async def save_user_camera(
     camera: dict,
     user_id: int = Depends(get_current_user)
@@ -137,7 +140,7 @@ async def save_user_camera(
     return saved
 
 
-@app.delete("/api/user/cameras/{camera_id}")
+@router.delete("/user/cameras/{camera_id}")
 async def delete_user_camera_endpoint(
     camera_id: str,
     user_id: int = Depends(get_current_user)
@@ -147,7 +150,7 @@ async def delete_user_camera_endpoint(
     return {"ok": True}
 
 
-@app.get("/api/user/alerts")
+@router.get("/user/alerts")
 async def get_user_alerts_endpoint(
     unread_only: bool = False,
     user_id: int = Depends(get_current_user)
@@ -157,7 +160,7 @@ async def get_user_alerts_endpoint(
     return alerts
 
 
-@app.post("/api/user/alerts")
+@router.post("/user/alerts")
 async def create_user_alert(
     alert: dict,
     user_id: int = Depends(get_current_user)
@@ -167,7 +170,7 @@ async def create_user_alert(
     return {"id": alert_id}
 
 
-@app.put("/api/user/alerts/{alert_id}/read")
+@router.put("/user/alerts/{alert_id}/read")
 async def mark_alert_read(
     alert_id: int,
     user_id: int = Depends(get_current_user)
@@ -177,7 +180,7 @@ async def mark_alert_read(
     return {"ok": True}
 
 
-@app.get("/api/user/training-images")
+@router.get("/user/training-images")
 async def get_user_training_images_endpoint(
     sector_id: Optional[str] = None,
     user_id: int = Depends(get_current_user)
@@ -187,7 +190,7 @@ async def get_user_training_images_endpoint(
     return images
 
 
-@app.get("/api/user/training-images/{image_id}")
+@router.get("/user/training-images/{image_id}")
 async def get_user_training_image(
     image_id: int,
     user_id: int = Depends(get_current_user)
@@ -204,7 +207,7 @@ async def get_user_training_image(
     )
 
 
-@app.delete("/api/user/training-images/{image_id}")
+@router.delete("/user/training-images/{image_id}")
 async def delete_user_training_image_endpoint(
     image_id: int,
     user_id: int = Depends(get_current_user)

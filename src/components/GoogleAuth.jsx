@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { LogIn, LogOut, User, Loader2 } from 'lucide-react';
 
-const GOOGLE_CLIENT_ID = "YOUR_GOOGLE_CLIENT_ID.apps.googleusercontent.com";
+const GOOGLE_CLIENT_ID = "48750229292-ljj00ef6sv9lvjh5c2rmcromvgpt9ro7.apps.googleusercontent.com";
 
 export default function GoogleAuth({ onAuthChange }) {
   const [user, setUser] = useState(null);

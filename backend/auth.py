@@ -10,7 +10,7 @@ from google.auth.transport import requests
 import database as db
 
 # Google OAuth Configuration
-GOOGLE_CLIENT_ID = "YOUR_GOOGLE_CLIENT_ID"  # Set via environment variable
+GOOGLE_CLIENT_ID = "48750229292-ljj00ef6sv9lvjh5c2rmcromvgpt9ro7.apps.googleusercontent.com"  # Set via environment variable
 JWT_SECRET = "your-secret-key-change-in-production"  # Set via environment variable
 JWT_ALGORITHM = "HS256"
 JWT_EXPIRATION = 86400  # 24 hours

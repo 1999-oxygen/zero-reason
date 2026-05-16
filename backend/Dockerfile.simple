@@ -25,6 +25,7 @@ RUN pip install --no-cache-dir \
     pydantic \
     pydantic-settings \
     google-auth \
+    requests \
     PyJWT \
     pillow \
     aiohttp

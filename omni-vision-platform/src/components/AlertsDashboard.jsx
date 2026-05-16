@@ -2,8 +2,9 @@ import React, { useState, useEffect, useRef, useMemo } from 'react';
 import {
   AlertTriangle, Shield, Info, AlertCircle, Filter,
   Clock, MapPin, BrainCircuit, ChevronDown, ChevronUp,
-  Bell, CheckCircle2, X, Eye, Zap, Activity
+  Bell, CheckCircle2, X, Eye, Zap, Activity, Server
 } from 'lucide-react';
+import { api } from '../services/apiClient';
 
 // Alert generator for demo data
 function generateMockAlert(sectorId, index) {
@@ -123,12 +124,45 @@ export default function AlertsDashboard({ sectors, onClose }) {
   const [filterRead, setFilterRead] = useState('all'); // all | unread | read
   const [expandedAlert, setExpandedAlert] = useState(null);
   const [liveMode, setLiveMode] = useState(true);
+  const [backendMode, setBackendMode] = useState(false);
   const intervalRef = useRef(null);
+
+  // Check backend availability and fetch real alerts
+  useEffect(() => {
+    const loadFromBackend = async () => {
+      try {
+        const health = await api.get('/api/health');
+        if (health.online) {
+          setBackendMode(true);
+          const remoteAlerts = await api.get('/api/alerts?limit=200');
+          if (remoteAlerts && remoteAlerts.length > 0) {
+            const normalized = remoteAlerts.map(a => ({
+              id: `alert_${a.id}`,
+              sectorId: a.sector_id,
+              type: a.alert_type,
+              title: a.title,
+              desc: a.description,
+              severity: a.severity,
+              timestamp: a.created_at,
+              read: !!a.read,
+              cameraId: a.camera_id
+            }));
+            setAlerts(normalized);
+          }
+        }
+      } catch (e) {
+        setBackendMode(false);
+      }
+    };
+    loadFromBackend();
+  }, []);
 
   // Persist alerts
   useEffect(() => {
-    localStorage.setItem('aiAlerts', JSON.stringify(alerts));
-  }, [alerts]);
+    if (!backendMode) {
+      localStorage.setItem('aiAlerts', JSON.stringify(alerts));
+    }
+  }, [alerts, backendMode]);
 
   // Live alert generation
   useEffect(() => {
@@ -169,23 +203,42 @@ export default function AlertsDashboard({ sectors, onClose }) {
     return { total, unread, alerts: alerts_, warnings, bySector };
   }, [alerts, sectors]);
 
-  const markAsRead = (alertId) => {
+  const markAsRead = async (alertId) => {
     setAlerts(prev => prev.map(a =>
       a.id === alertId ? { ...a, read: true } : a
     ));
+    if (backendMode) {
+      try {
+        const numericId = parseInt(alertId.replace('alert_', ''));
+        await api.post(`/api/alerts/${numericId}/read`);
+      } catch (e) {}
+    }
   };
 
-  const markAllAsRead = () => {
+  const markAllAsRead = async () => {
     setAlerts(prev => prev.map(a => ({ ...a, read: true })));
+    if (backendMode) {
+      try { await api.post('/api/alerts/read-all'); } catch (e) {}
+    }
   };
 
-  const dismissAlert = (alertId) => {
+  const dismissAlert = async (alertId) => {
     setAlerts(prev => prev.filter(a => a.id !== alertId));
+    if (backendMode) {
+      try {
+        const numericId = parseInt(alertId.replace('alert_', ''));
+        await api.delete(`/api/alerts/${numericId}`);
+      } catch (e) {}
+    }
   };
 
-  const clearAllAlerts = () => {
+  const clearAllAlerts = async () => {
     if (!confirm('Clear all alerts? This cannot be undone.')) return;
     setAlerts([]);
+    if (backendMode) {
+      // Backend doesn't have bulk delete; individual deletes would be slow
+      // Just clear locally for now
+    }
   };
 
   const unreadCount = stats.unread;
@@ -231,6 +284,14 @@ export default function AlertsDashboard({ sectors, onClose }) {
             <Filter className="w-4 h-4" />
             <span className="font-medium">Filters:</span>
           </div>
+
+          {/* Backend Status */}
+          {backendMode && (
+            <div className="flex items-center gap-1.5 px-2 py-1 bg-emerald-500/10 text-emerald-400 rounded-lg border border-emerald-500/30 text-xs">
+              <Server className="w-3.5 h-3.5" />
+              Backend
+            </div>
+          )}
 
           {/* Sector Filter */}
           <select

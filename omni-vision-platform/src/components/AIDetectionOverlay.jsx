@@ -1,6 +1,8 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { BrainCircuit, Eye, EyeOff, Crosshair, AlertTriangle, Cpu, Loader2, Zap } from 'lucide-react';
 import { mlModelService } from '../services/mlModelService';
+import { videoFeedWS } from '../services/apiClient';
+import roboflowService from '../services/roboflowService';
 
 // Simulated detection data generator based on sector
 function generateMockDetections(sectorId, width, height) {
@@ -81,6 +83,7 @@ export function AIDetectionOverlay({ camera, sectorConfig, enabled = true }) {
   const [modelStatus, setModelStatus] = useState({ status: 'unloaded', error: null });
   const [useCustomModel, setUseCustomModel] = useState(false);
   const [isLoadingModel, setIsLoadingModel] = useState(false);
+  const [backendConnected, setBackendConnected] = useState(false);
   const containerRef = useRef(null);
   const intervalRef = useRef(null);
 
@@ -88,6 +91,25 @@ export function AIDetectionOverlay({ camera, sectorConfig, enabled = true }) {
   const colors = getSectorColors(sectorId);
   const isEnabled = enabled && sectorConfig?.enabled !== false;
   const hasModelUrl = !!sectorConfig?.mlModelUrl;
+  const videoRef = useRef(null);
+
+  // Register custom ML model if configured
+  useEffect(() => {
+    if (hasModelUrl && sectorConfig.mlModelUrl) {
+      const success = roboflowService.registerModel(
+        sectorId,
+        sectorConfig.mlModelUrl,
+        sectorConfig.mlModelType || 'roboflow'
+      );
+      setUseCustomModel(success);
+      if (success) {
+        console.log(`✅ Custom ML model registered for ${sectorId}`);
+      }
+    } else {
+      setUseCustomModel(false);
+      roboflowService.unregisterModel(sectorId);
+    }
+  }, [sectorId, hasModelUrl, sectorConfig?.mlModelUrl]);
 
   // Subscribe to model state changes
   useEffect(() => {
@@ -127,18 +149,98 @@ export function AIDetectionOverlay({ camera, sectorConfig, enabled = true }) {
     setUseCustomModel(false);
   };
 
-  // Generate detections periodically
+  // WebSocket backend connection for real-time AI
   useEffect(() => {
     if (!isEnabled || !showOverlay) {
       setDetections([]);
+      setBackendConnected(false);
+      videoFeedWS.disconnect();
+      return;
+    }
+
+    // Try WebSocket backend first
+    const unsubStatus = videoFeedWS.on("status", (data) => {
+      setBackendConnected(data.connected);
+    });
+    const unsubFrame = videoFeedWS.on("frame", (data) => {
+      if (data.boxes && data.boxes.length > 0) {
+        const scaled = data.boxes.map(d => ({
+          label: d.label,
+          confidence: d.confidence,
+          bbox: [
+            d.box[0] * (containerSize.width / 640),
+            d.box[1] * (containerSize.height / 360),
+            (d.box[2] - d.box[0]) * (containerSize.width / 640),
+            (d.box[3] - d.box[1]) * (containerSize.height / 360)
+          ],
+          severity: d.severity || "normal",
+          in_zone: d.in_zone
+        }));
+        setDetections(scaled);
+      }
+    });
+
+    // Connect to backend AI brain
+    videoFeedWS.connect(sectorId, camera?.url || "0");
+
+    return () => {
+      unsubStatus();
+      unsubFrame();
+      videoFeedWS.disconnect();
+    };
+  }, [isEnabled, showOverlay, sectorId, camera?.url, containerSize.width, containerSize.height]);
+
+  // Fallback: generate mock detections if backend not connected
+  useEffect(() => {
+    if (!isEnabled || !showOverlay || backendConnected) {
+      if (backendConnected && intervalRef.current) {
+        clearInterval(intervalRef.current);
+        intervalRef.current = null;
+      }
       return;
     }
 
     const updateDetections = async () => {
       let baseDetections;
 
-      // If custom model is loaded and user wants to use it
-      if (useCustomModel && modelStatus.status === 'ready') {
+      // If custom Roboflow model is configured, use it for inference
+      if (useCustomModel && roboflowService.hasCustomModel(sectorId)) {
+        try {
+          // Get video element from camera feed
+          const videoElement = document.querySelector(`video[data-camera-id="${camera?.id}"]`) || 
+                              document.querySelector('video');
+          
+          if (videoElement && videoElement.readyState >= 2) {
+            const roboflowDetections = await roboflowService.inferFrame(
+              sectorId,
+              videoElement,
+              sectorConfig?.confidenceThreshold || 0.6
+            );
+            
+            // Transform to our bbox format
+            baseDetections = roboflowDetections.map(d => ({
+              label: d.label,
+              confidence: d.confidence,
+              bbox: [
+                d.x * containerSize.width,
+                d.y * containerSize.height,
+                d.width * containerSize.width,
+                d.height * containerSize.height
+              ],
+              severity: d.confidence > 0.9 ? 'high-value' : 'normal',
+              source: 'roboflow'
+            }));
+          } else {
+            // Video not ready, use mock
+            baseDetections = generateMockDetections(sectorId, containerSize.width, containerSize.height);
+          }
+        } catch (error) {
+          console.error('Roboflow inference error:', error);
+          // Fallback to mock on error
+          baseDetections = generateMockDetections(sectorId, containerSize.width, containerSize.height);
+        }
+      } else if (useCustomModel && modelStatus.status === 'ready') {
+        // Legacy ML model service
         const inferenceResult = await mlModelService.runInference(sectorId, null);
         if (inferenceResult) {
           baseDetections = inferenceResult.map(d => ({
@@ -156,7 +258,7 @@ export function AIDetectionOverlay({ camera, sectorConfig, enabled = true }) {
       } else {
         baseDetections = generateMockDetections(sectorId, containerSize.width, containerSize.height);
       }
-      
+
       // Add slight randomization to positions for "live" feel
       const jittered = baseDetections.map(d => {
         const jitter = 5;
@@ -171,7 +273,7 @@ export function AIDetectionOverlay({ camera, sectorConfig, enabled = true }) {
           confidence: Math.min(0.99, Math.max(0.60, d.confidence + (Math.random() - 0.5) * 0.05))
         };
       });
-      
+
       setDetections(jittered);
     };
 
@@ -181,7 +283,7 @@ export function AIDetectionOverlay({ camera, sectorConfig, enabled = true }) {
     return () => {
       if (intervalRef.current) clearInterval(intervalRef.current);
     };
-  }, [isEnabled, showOverlay, sectorId, containerSize.width, containerSize.height, useCustomModel, modelStatus.status]);
+  }, [isEnabled, showOverlay, sectorId, containerSize.width, containerSize.height, useCustomModel, modelStatus.status, backendConnected]);
 
   const alertCount = detections.filter(d => d.severity === 'alert').length;
   const warningCount = detections.filter(d => d.severity === 'warning').length;
@@ -248,6 +350,22 @@ export function AIDetectionOverlay({ camera, sectorConfig, enabled = true }) {
         <div className="absolute top-3 right-3 z-20 flex items-center gap-1.5 px-3 py-1.5 bg-amber-500/90 rounded-lg text-xs font-semibold text-white backdrop-blur-sm">
           <AlertTriangle className="w-3.5 h-3.5" />
           {warningCount} Warning{warningCount > 1 ? 's' : ''}
+        </div>
+      )}
+
+      {/* Backend Connection Status */}
+      {showOverlay && isEnabled && backendConnected && (
+        <div className="absolute bottom-3 left-3 z-20 px-3 py-1.5 bg-emerald-500/90 rounded-lg text-xs text-white backdrop-blur-sm flex items-center gap-1.5">
+          <div className="w-2 h-2 bg-white rounded-full animate-pulse" />
+          AI Brain Connected
+        </div>
+      )}
+
+      {/* Roboflow Model Active */}
+      {showOverlay && isEnabled && useCustomModel && roboflowService.hasCustomModel(sectorId) && !backendConnected && (
+        <div className="absolute bottom-3 left-3 z-20 px-3 py-1.5 bg-blue-500/90 rounded-lg text-xs text-white backdrop-blur-sm flex items-center gap-1.5">
+          <Cpu className="w-3.5 h-3.5" />
+          Custom ML Model Active
         </div>
       )}
 

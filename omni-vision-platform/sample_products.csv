@@ -1,0 +1,11 @@
+brand_name,buying_price,selling_price,category,stock,class_id
+Tusker_Lager_500ml,150,220,liquor,48,41
+Chrome_Vodka_250ml,180,250,liquor,24,39
+Johnnie_Walker_Black_750ml,2800,3500,liquor,12,42
+Smirnoff_Ice_300ml,120,180,liquor,36,43
+Heineken_330ml,100,150,liquor,50,44
+Guinness_500ml,140,200,liquor,30,45
+Baileys_750ml,1800,2300,liquor,15,46
+Captain_Morgan_750ml,1200,1600,liquor,20,47
+Absolut_Vodka_750ml,1500,2000,liquor,18,48
+Jack_Daniels_750ml,2200,2800,liquor,10,49

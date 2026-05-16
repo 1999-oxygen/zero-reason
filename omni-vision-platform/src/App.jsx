@@ -11,6 +11,7 @@ import { VideoPlayer } from './components/VideoRecorder';
 import { CameraViewer, CameraGridView } from './components/CameraViewer';
 import TrainingImageManager from './components/TrainingImageManager';
 import AlertsDashboard from './components/AlertsDashboard';
+import LiquorStoreDashboard from './components/LiquorStoreDashboard';
 import posService from './services/posIntegration';
 import cameraService from './services/cameraIntegration';
 import aiDetectionService from './services/aiDetection';
@@ -320,18 +321,26 @@ export default function App() {
   };
 
   // --- CAMERA MANAGEMENT HANDLERS ---
-  const initializeCameras = () => {
-    // Load mock cameras for demo
-    const mockCameras = cameraService.getMockCameras();
-    setCameras(mockCameras);
+  const initializeCameras = async () => {
+    // Wait for backend sync to complete
+    await cameraService._checkBackend();
+    // Try to load real cameras from backend first
+    const serviceCameras = cameraService.getCameras();
+    if (serviceCameras && serviceCameras.length > 0) {
+      setCameras(serviceCameras);
+    } else {
+      // Fallback to mock cameras for demo
+      const mockCameras = cameraService.getMockCameras();
+      setCameras(mockCameras);
+    }
   };
 
-  const handleAddCamera = () => {
+  const handleAddCamera = async () => {
     let camera;
     
     switch (newCamera.type) {
       case 'webcam':
-        camera = cameraService.addCamera({
+        camera = await cameraService.addCamera({
           name: newCamera.name,
           type: 'webcam',
           location: newCamera.location,
@@ -340,7 +349,7 @@ export default function App() {
         break;
         
       case 'ip':
-        camera = cameraService.addCamera({
+        camera = await cameraService.addCamera({
           name: newCamera.name,
           type: 'ip',
           url: newCamera.url,
@@ -351,7 +360,7 @@ export default function App() {
         
       case 'phone':
         const phoneUrl = `http://${newCamera.phoneIP}:${newCamera.phonePort}/video`;
-        camera = cameraService.addCamera({
+        camera = await cameraService.addCamera({
           name: newCamera.name,
           type: 'phone',
           url: phoneUrl,
@@ -369,7 +378,7 @@ export default function App() {
         type: 'webcam',
         url: '',
         location: '',
-        module: 'retail',
+        module: activeModule,
         phoneIP: '',
         phonePort: '8080',
         phoneApp: 'ipwebcam'
@@ -377,8 +386,8 @@ export default function App() {
     }
   };
 
-  const handleRemoveCamera = (cameraId) => {
-    cameraService.removeCamera(cameraId);
+  const handleRemoveCamera = async (cameraId) => {
+    await cameraService.removeCamera(cameraId);
     setCameras(cameras.filter(c => c.id !== cameraId));
   };
 
@@ -447,47 +456,7 @@ export default function App() {
         );
 
       case 'liquor':
-        return (
-          <div className="space-y-6 animate-in fade-in">
-            <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-              <StatCard title="Customers Today" value="156" icon={Users} color="blue" />
-              <StatCard title="Premium Items Tracked" value="48" icon={Wine} color="amber" />
-              <StatCard title="Theft Alerts" value="3" icon={AlertTriangle} color="red" alert />
-              <StatCard title="Age Verifications" value="12" icon={ShieldAlert} color="emerald" />
-            </div>
-            <div className="flex gap-6 h-[400px]">
-              <div className="flex-1 bg-slate-900 rounded-2xl border border-slate-800 overflow-hidden relative">
-                <div className="absolute inset-0 bg-[url('https://images.unsplash.com/photo-1572116469696-31de0f17cc34?q=80&w=1974&auto=format&fit=crop')] bg-cover bg-center opacity-40"></div>
-                {/* Liquor Bottle Detection */}
-                <div className="absolute top-1/4 right-1/3 w-32 h-48 border-2 border-amber-500 bg-amber-500/20 rounded-lg">
-                  <div className="absolute -top-12 left-[-2px] bg-amber-500 text-slate-900 text-[10px] font-bold px-2 py-1 rounded flex flex-col">
-                    <span>Premium Whiskey</span>
-                    <span>Value: $450</span>
-                    <span>Tracked: Active</span>
-                  </div>
-                </div>
-                {/* Concealment Detection */}
-                <div className="absolute top-1/3 left-1/4 w-48 h-64 border-2 border-red-500 bg-red-500/10 rounded-lg">
-                  <div className="absolute -top-10 left-[-2px] bg-red-500 text-white text-[10px] font-bold px-2 py-1 rounded flex flex-col">
-                    <span>Wine Bottle (Unpaid)</span>
-                    <span>Action: Concealed in Jacket</span>
-                  </div>
-                  <svg className="absolute inset-0 w-full h-full pointer-events-none" viewBox="0 0 100 100">
-                    <path d="M 50 30 L 50 70" stroke="red" strokeWidth="2" strokeDasharray="4" className="animate-pulse" />
-                    <circle cx="50" cy="70" r="4" fill="red" />
-                  </svg>
-                </div>
-              </div>
-              <div className="w-80 bg-slate-900 rounded-2xl border border-slate-800 p-4 overflow-y-auto">
-                <h3 className="text-sm font-bold text-slate-400 uppercase mb-4">Liquor Store AI</h3>
-                <LogEntry time="14:22" title="Premium Item Tracked" desc="Glenfiddich 18 picked up from shelf." type="info" onAnalyze={handleAnalyzeIncident} />
-                <LogEntry time="14:23" title="Age Check Required" desc="Customer appears under 25. Verification needed." type="warning" onAnalyze={handleAnalyzeIncident} />
-                <LogEntry time="14:25" title="Concealment Detected" desc="Wine bottle moved to jacket area." type="danger" onAnalyze={handleAnalyzeIncident} />
-                <LogEntry time="14:26" title="THEFT ALERT" desc="Subject heading to exit without payment." type="danger" onAnalyze={handleAnalyzeIncident} />
-              </div>
-            </div>
-          </div>
-        );
+        return <LiquorStoreDashboard />;
 
       case 'clubs':
         return (
@@ -951,19 +920,19 @@ export default function App() {
                   <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                     <div className="bg-slate-950 p-4 rounded-lg">
                       <p className="text-xs text-slate-400 uppercase mb-1">Transactions</p>
-                      <p className="text-2xl font-bold text-white">{posStats.totalTransactions}</p>
+                      <p className="text-2xl font-bold text-white">{posStats.totalTransactions ?? 0}</p>
                     </div>
                     <div className="bg-slate-950 p-4 rounded-lg">
                       <p className="text-xs text-slate-400 uppercase mb-1">Revenue</p>
-                      <p className="text-2xl font-bold text-emerald-400">${posStats.totalRevenue.toFixed(2)}</p>
+                      <p className="text-2xl font-bold text-emerald-400">${(posStats.totalRevenue ?? 0).toFixed(2)}</p>
                     </div>
                     <div className="bg-slate-950 p-4 rounded-lg">
                       <p className="text-xs text-slate-400 uppercase mb-1">Avg Transaction</p>
-                      <p className="text-2xl font-bold text-blue-400">${posStats.averageTransaction.toFixed(2)}</p>
+                      <p className="text-2xl font-bold text-blue-400">${(posStats.averageTransaction ?? 0).toFixed(2)}</p>
                     </div>
                     <div className="bg-slate-950 p-4 rounded-lg">
                       <p className="text-xs text-slate-400 uppercase mb-1">Top Employee</p>
-                      <p className="text-sm font-bold text-purple-400">{posStats.topEmployee.name}</p>
+                      <p className="text-sm font-bold text-purple-400">{posStats.topEmployee?.name ?? 'N/A'}</p>
                     </div>
                   </div>
                 </div>
@@ -1005,7 +974,10 @@ export default function App() {
                 <div className="flex items-center justify-between mb-4">
                   <h3 className="text-lg font-semibold text-white">Camera Management</h3>
                   <button
-                    onClick={() => setShowAddCamera(!showAddCamera)}
+                    onClick={() => {
+                      setNewCamera(prev => ({ ...prev, module: activeModule }));
+                      setShowAddCamera(!showAddCamera);
+                    }}
                     className="flex items-center px-4 py-2 bg-blue-500/10 hover:bg-blue-500/20 text-blue-400 rounded-lg border border-blue-500/30 transition-colors font-semibold"
                   >
                     <Plus className="w-4 h-4 mr-2" />

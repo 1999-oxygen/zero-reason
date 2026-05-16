@@ -1,0 +1,167 @@
+This report is exactly what we needed to see! It highlights the exact bottlenecks we have to fix to make this a reliable, commercial-grade product.
+
+Here is the most critical takeaway from that report: **You cannot use `localStorage` for a financial system.** If a shop owner clears their browser history, all their sales data and profit logs will vanish instantly.
+
+Secondly, since this is for local Kenyan liquor shops, **do not deploy this to Netlify or GitHub Pages.** If the shop's Safaricom router loses connection, your cameras and AI will stop working.
+
+### The Verdict: We are building an "Edge Application"
+
+Your Mini PC in the shop *is* the server. We don't need the cloud.
+
+Here is the exact battle plan to upgrade your current architecture:
+
+1. **Keep the React UI:** Your Vite app is perfect as the frontend.
+2. **Ditch `localStorage` and Netlify:** We are replacing these entirely.
+3. **The Python Upgrade:** We will wrap our `LiquorAIBrain` in **FastAPI** (a high-performance Python web framework). This single Python script will replace your Node proxy, replace Netlify, manage the SQLite database, and run the AI.
+
+I have written the backend server for you. This script turns your AI Brain into a real-time WebSocket server that your React app can talk to instantly.
+
+Here is your new complete Python backend:
+
+### How this changes everything:
+
+1. **Real Database:** It automatically creates `shop_sales.db`. This is a real file on the hard drive. If the computer loses power, the sales data is completely safe.
+2. **The API (`/api/daily_summary`):** Your React dashboard can simply fetch `http://localhost:8000/api/daily_summary` and immediately show the shop owner exactly how much profit they've made today.
+3. **The WebSocket (`/ws/video_feed`):** We replace the JavaScript mock detections. Your React app connects to this WebSocket, and Python streams the bounding boxes and sales alerts directly to your UI in real-time.
+
+To run this, you will install FastAPI (`pip install fastapi uvicorn websockets`) and run the script.
+
+Should we look at the specific 10 lines of JavaScript code you need to add to your React app (`mlModelService.js`) so it can catch these signals from Python?
+import cv2
+import json
+import sqlite3
+import asyncio
+from fastapi import FastAPI, WebSocket, WebSocketDisconnect
+from fastapi.middleware.cors import CORSMiddleware
+import uvicorn
+import numpy as np
+import supervision as sv
+from ultralytics import YOLO
+
+# 1. Initialize FastAPI
+app = FastAPI()
+
+# Allow React to communicate with this backend
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"], # In production, restrict this to your React app's local IP
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
+# 2. The AI Brain (From our previous step)
+class LiquorAIBrain:
+    def __init__(self, model_path="yolov8n.pt", db_path="shop_sales.db", frame_resolution=(640, 480)):
+        self.db_path = db_path
+        self.resolution = frame_resolution
+        self.counted_tracker_ids = set()
+        
+        self.model = YOLO(model_path)
+        self.tracker = sv.ByteTrack()
+        self._setup_database()
+
+        w, h = self.resolution
+        zone_polygon = np.array([[w // 2, h // 2], [w, h // 2], [w, h], [w // 2, h]])
+        self.zone = sv.PolygonZone(polygon=zone_polygon, frame_resolution_wh=self.resolution)
+
+    def _setup_database(self):
+        conn = sqlite3.connect(self.db_path)
+        cursor = conn.cursor()
+        cursor.execute('''CREATE TABLE IF NOT EXISTS products (class_id INTEGER PRIMARY KEY, brand_name TEXT, buying_price REAL, selling_price REAL)''')
+        cursor.execute('''CREATE TABLE IF NOT EXISTS sales_log (id INTEGER PRIMARY KEY AUTOINCREMENT, brand_name TEXT, revenue REAL, profit REAL, timestamp DATETIME DEFAULT CURRENT_TIMESTAMP)''')
+        
+        # Test Data
+        cursor.execute('DELETE FROM products') 
+        cursor.executemany('INSERT INTO products VALUES (?, ?, ?, ?)', [
+            (39, 'Chrome_Vodka_250ml', 180.0, 250.0), # Class 39 = bottle
+            (41, 'Tusker_Lager_500ml', 150.0, 220.0)  # Class 41 = cup
+        ])
+        conn.commit()
+
+    def process_frame(self, frame):
+        results = self.model(frame, verbose=False)[0]
+        detections = sv.Detections.from_ultralytics(results)
+        detections = self.tracker.update_with_detections(detections)
+        zone_mask = self.zone.trigger(detections=detections)
+        
+        new_sales = []
+        bounding_boxes = []
+
+        for i, (detection, in_zone) in enumerate(zip(detections, zone_mask)):
+            bbox, mask, confidence, class_id, tracker_id = detection
+            
+            # Format bounding box for React UI [x_min, y_min, x_max, y_max]
+            bounding_boxes.append({
+                "class_id": int(class_id),
+                "box": [float(bbox[0]), float(bbox[1]), float(bbox[2]), float(bbox[3])],
+                "in_zone": bool(in_zone)
+            })
+            
+            if in_zone and tracker_id is not None and tracker_id not in self.counted_tracker_ids:
+                self.counted_tracker_ids.add(tracker_id)
+                conn = sqlite3.connect(self.db_path)
+                cursor = conn.cursor()
+                cursor.execute('SELECT brand_name, buying_price, selling_price FROM products WHERE class_id = ?', (int(class_id),))
+                product = cursor.fetchone()
+                
+                if product:
+                    brand_name, buy, sell = product
+                    profit = sell - buy
+                    cursor.execute('INSERT INTO sales_log (brand_name, revenue, profit) VALUES (?, ?, ?)', (brand_name, sell, profit))
+                    conn.commit()
+                    new_sales.append({"brand": brand_name, "revenue": sell, "profit": profit})
+                    print(f"💰 SALE: {brand_name}")
+
+        return {"boxes": bounding_boxes, "new_sales": new_sales}
+
+# Initialize Brain
+brain = LiquorAIBrain()
+
+# 3. WebSocket Endpoint for React
+@app.websocket("/ws/video_feed")
+async def video_feed(websocket: WebSocket):
+    await websocket.accept()
+    cap = cv2.VideoCapture(0) # 0 for webcam, or put RTSP string here
+    
+    try:
+        while True:
+            ret, frame = cap.read()
+            if not ret:
+                break
+            
+            frame = cv2.resize(frame, (640, 480))
+            
+            # Run AI
+            ai_data = brain.process_frame(frame)
+            
+            # Compress frame to send to React (Optional: you can also just send boxes and let React draw over a direct camera feed)
+            _, buffer = cv2.imencode('.jpg', frame, [cv2.IMWRITE_JPEG_QUALITY, 50])
+            frame_base64 = buffer.tobytes().hex() # Simple hex encoding for demo
+            
+            # Send Data to React
+            payload = {
+                "boxes": ai_data["boxes"],
+                "sales": ai_data["new_sales"]
+            }
+            await websocket.send_text(json.dumps(payload))
+            
+            await asyncio.sleep(0.03) # roughly 30 FPS
+            
+    except WebSocketDisconnect:
+        print("React Client Disconnected")
+    finally:
+        cap.release()
+
+# 4. REST API Endpoint for Daily Profits
+@app.get("/api/daily_summary")
+def get_daily_summary():
+    conn = sqlite3.connect("shop_sales.db")
+    cursor = conn.cursor()
+    cursor.execute("SELECT SUM(revenue), SUM(profit) FROM sales_log WHERE date(timestamp) = date('now')")
+    data = cursor.fetchone()
+    return {"today_revenue": data[0] or 0, "today_profit": data[1] or 0}
+
+if __name__ == "__main__":
+    print("🚀 Starting Liquor AI Server...")
+    uvicorn.run(app, host="0.0.0.0", port=8000)

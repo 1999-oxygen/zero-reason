@@ -1,5 +1,8 @@
+import { api } from './apiClient';
+
 // POS Integration Service for Loyverse and Square
 // This service provides unified API access to different POS systems
+// Also syncs AI-detected sales to the Python backend.
 
 class POSIntegrationService {
   constructor() {
@@ -7,6 +10,17 @@ class POSIntegrationService {
     this.apiKey = null;
     this.baseURL = null;
     this.storeId = null;
+    this.backendAvailable = false;
+    this._checkBackend();
+  }
+
+  async _checkBackend() {
+    try {
+      const res = await fetch('http://localhost:8000/api/health', { method: 'GET', mode: 'cors' });
+      if (res.ok) this.backendAvailable = true;
+    } catch (e) {
+      this.backendAvailable = false;
+    }
   }
 
   // Initialize POS connection
@@ -206,18 +220,57 @@ class POSIntegrationService {
 
   // Get sales statistics
   async getSalesStats(timeWindow = 3600000) { // 1 hour default
+    // Try backend first for AI-detected + POS combined stats
+    if (this.backendAvailable) {
+      try {
+        const summary = await api.get('/api/pos/daily-summary');
+        return {
+          totalTransactions: summary.today_sales || 0,
+          totalRevenue: summary.today_revenue || 0,
+          totalProfit: summary.today_profit || 0,
+          averageTransaction: summary.today_sales > 0 ? (summary.today_revenue / summary.today_sales) : 0,
+          topEmployee: { name: 'N/A', count: 0, revenue: 0 },
+          itemsSold: 0,
+          source: 'backend'
+        };
+      } catch (e) {}
+    }
+
     const startTime = new Date(Date.now() - timeWindow).toISOString();
     const transactions = await this.getRecentTransactions(100, startTime);
 
     return {
       totalTransactions: transactions.length,
       totalRevenue: transactions.reduce((sum, t) => sum + t.total, 0),
-      averageTransaction: transactions.length > 0 
-        ? transactions.reduce((sum, t) => sum + t.total, 0) / transactions.length 
+      averageTransaction: transactions.length > 0
+        ? transactions.reduce((sum, t) => sum + t.total, 0) / transactions.length
         : 0,
       topEmployee: this.getTopEmployee(transactions),
       itemsSold: transactions.reduce((sum, t) => sum + t.items.length, 0)
     };
+  }
+
+  // Record an AI-detected sale to the backend
+  async recordBackendSale(productId, brandName, revenue, profit, cameraId = null) {
+    if (!this.backendAvailable) return null;
+    try {
+      return await api.post('/api/pos/sales', {
+        productId, brandName, revenue, profit, cameraId, detected: true
+      });
+    } catch (e) {
+      console.warn('Failed to record sale to backend:', e);
+      return null;
+    }
+  }
+
+  // Get backend sales history
+  async getBackendSalesHistory(days = 7) {
+    if (!this.backendAvailable) return [];
+    try {
+      return await api.get(`/api/pos/sales-history?days=${days}`);
+    } catch (e) {
+      return [];
+    }
   }
 
   // Helper to find top performing employee

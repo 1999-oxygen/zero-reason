@@ -1,3 +1,5 @@
+import { api } from './apiClient';
+
 // Camera Integration Service
 // Supports: Webcam, IP Cameras (RTSP/HTTP), Phone Cameras (IP Webcam, DroidCam)
 
@@ -5,10 +7,28 @@ class CameraIntegrationService {
   constructor() {
     this.cameras = [];
     this.activeStreams = new Map();
+    this.backendAvailable = false;
+    this._checkBackend();
+  }
+
+  async _checkBackend() {
+    try {
+      const res = await fetch('http://localhost:8000/api/health', { method: 'GET', mode: 'cors' });
+      if (res.ok) {
+        this.backendAvailable = true;
+        // Sync cameras from backend
+        const remote = await api.get('/api/cameras');
+        if (remote && remote.length > 0) {
+          this.cameras = remote;
+        }
+      }
+    } catch (e) {
+      this.backendAvailable = false;
+    }
   }
 
   // Add a camera configuration
-  addCamera(config) {
+  async addCamera(config) {
     const camera = {
       id: config.id || `cam_${Date.now()}`,
       name: config.name || 'Unnamed Camera',
@@ -22,15 +42,22 @@ class CameraIntegrationService {
     };
 
     this.cameras.push(camera);
+    // Sync to backend
+    if (this.backendAvailable) {
+      try { await api.post('/api/cameras', camera); } catch (e) {}
+    }
     return camera;
   }
 
   // Remove a camera
-  removeCamera(cameraId) {
+  async removeCamera(cameraId) {
     const index = this.cameras.findIndex(c => c.id === cameraId);
     if (index > -1) {
       this.stopCamera(cameraId);
       this.cameras.splice(index, 1);
+      if (this.backendAvailable) {
+        try { await api.delete(`/api/cameras/${cameraId}`); } catch (e) {}
+      }
       return true;
     }
     return false;
@@ -112,8 +139,8 @@ class CameraIntegrationService {
       }
 
       // Use proxy server to avoid CORS and mixed content issues
-      // Proxy server runs on localhost:3001
-      const proxyUrl = `http://localhost:3001/camera-stream?ip=${phoneIP}&port=${defaultPort}&app=${app}`;
+      // Python backend proxy runs on localhost:8000
+      const proxyUrl = `http://localhost:8000/api/camera-stream?ip=${phoneIP}&port=${defaultPort}&app=${app}`;
       
       // Log both the original camera URL and proxy URL for debugging
       const originalUrl = `http://${phoneIP}:${defaultPort}`;

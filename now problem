@@ -1,0 +1,57 @@
+Failed to load resource: net::ERR_CONNECTION_REFUSEDUnderstand this error
+localhost:8000/api/health:1  Failed to load resource: net::ERR_CONNECTION_REFUSEDUnderstand this error
+localhost:8000/api/health:1  Failed to load resource: net::ERR_CONNECTION_REFUSEDUnderstand this error
+index-BQ7_-NKE.js:50 POS not configured, using mock data
+getRecentTransactions @ index-BQ7_-NKE.js:50Understand this warning
+index-BQ7_-NKE.js:50 Initializing AI Detection Service...
+3index-BQ7_-NKE.js:50 POS not configured, using mock data
+getRecentTransactions @ index-BQ7_-NKE.js:50Understand this warning
+localhost:8000/api/health:1  Failed to load resource: net::ERR_CONNECTION_REFUSEDUnderstand this error
+index-BQ7_-NKE.js:50 AI Detection Service initialized
+index-BQ7_-NKE.js:67 AI Detection initialized: true
+2index-BQ7_-NKE.js:9 🗑️ Unregistered model for sector: retail
+40WebSocket connection to '<URL>' failed: WebSocket is closed before the connection is established.Understand this warning
+zero-reason/:1 Mixed Content: The page at 'https://1999-oxygen.github.io/zero-reason/' was loaded over HTTPS, but requested an insecure element 'http://192.168.1.50:8080/video'. This request was not upgraded to HTTPS because its URL's host is an IP address.Understand this warning
+zero-reason/:1 Mixed Content: The page at 'https://1999-oxygen.github.io/zero-reason/' was loaded over HTTPS, but requested an insecure image 'http://192.168.1.50:8080/video'. This content should also be served over HTTPS.Understand this warning
+index-BQ7_-NKE.js:9 [WS] Error: Event
+ws.onerror @ index-BQ7_-NKE.js:9Understand this error
+index-BQ7_-NKE.js:9 [WS] Disconnected
+index-BQ7_-NKE.js:9 [WS] Error: Event
+ws.onerror @ index-BQ7_-NKE.js:9Understand this error
+index-BQ7_-NKE.js:9 [WS] Disconnected
+index-BQ7_-NKE.js:9 [WS] Error: Event
+ws.onerror @ index-BQ7_-NKE.js:9Understand this error
+index-BQ7_-NKE.js:9 [WS] Disconnected
+index-BQ7_-NKE.js:9 [WS] Connected to AI Brain
+index-BQ7_-NKE.js:9 [WS] Disconnected
+index-BQ7_-NKE.js:9 [WS] Error: Event
+ws.onerror @ index-BQ7_-NKE.js:9Understand this error
+index-BQ7_-NKE.js:9 [WS] Disconnected
+index-BQ7_-NKE.js:9 [WS] Error: Event
+ws.onerror @ index-BQ7_-NKE.js:9Understand this error
+index-BQ7_-NKE.js:9 [WS] Disconnected
+index-BQ7_-NKE.js:9 [WS] Connected to AI Brain
+index-BQ7_-NKE.js:9 [WS] Disconnected
+index-BQ7_-NKE.js:9 [WS] Connected to AI Brain
+index-BQ7_-NKE.js:9 [WS] Disconnected
+index-BQ7_-NKE.js:9 [WS] Error: Event
+ws.onerror @ index-BQ7_-NKE.js:9Understand this error
+index-BQ7_-NKE.js:9 [WS] Disconnected
+index-BQ7_-NKE.js:9 [WS] Connected to AI Brain
+index-BQ7_-NKE.js:9 [WS] Disconnected
+index-BQ7_-NKE.js:9 [WS] Connected to AI Brain
+index-BQ7_-NKE.js:9 [WS] Disconnected
+index-BQ7_-NKE.js:9 [WS] Connected to AI Brain
+index-BQ7_-NKE.js:9 [WS] Disconnected
+index-BQ7_-NKE.js:9 [WS] Error: Event
+ws.onerror @ index-BQ7_-NKE.js:9Understand this error
+index-BQ7_-NKE.js:9 [WS] Disconnected
+index-BQ7_-NKE.js:9 [WS] Connected to AI Brain
+index-BQ7_-NKE.js:9 [WS] Disconnected
+index-BQ7_-NKE.js:9 [WS] Connected to AI Brain
+index-BQ7_-NKE.js:9 [WS] Disconnected
+index-BQ7_-NKE.js:9 [WS] Connected to AI Brain
+index-BQ7_-NKE.js:9 [WS] Disconnected
+index-BQ7_-NKE.js:9 [WS] Connected to AI Brain
+index-BQ7_-NKE.js:9 [WS] Disconnected
+index-BQ7_-NKE.js:9 

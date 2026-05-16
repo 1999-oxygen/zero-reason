@@ -1,6 +1,26 @@
+import { api } from './apiClient';
+
 class SectorAIConfigService {
   constructor() {
     this.sectorConfigs = this.loadConfigs();
+    this.backendAvailable = false;
+    this._checkBackend();
+  }
+
+  async _checkBackend() {
+    try {
+      const res = await fetch('http://localhost:8000/api/health', { method: 'GET', mode: 'cors' });
+      if (res.ok) {
+        this.backendAvailable = true;
+        // Sync from backend on startup
+        const remote = await api.get('/api/sectors');
+        if (remote && Object.keys(remote).length > 0) {
+          this.sectorConfigs = { ...this.sectorConfigs, ...remote };
+        }
+      }
+    } catch (e) {
+      this.backendAvailable = false;
+    }
   }
 
   loadConfigs() {
@@ -130,20 +150,30 @@ class SectorAIConfigService {
     };
   }
 
-  saveConfigs() {
+  async saveConfigs() {
     localStorage.setItem('sectorAIConfigs', JSON.stringify(this.sectorConfigs));
+    // Sync to backend if available
+    if (this.backendAvailable) {
+      for (const [id, cfg] of Object.entries(this.sectorConfigs)) {
+        try { await api.post(`/api/sectors/${id}`, cfg); } catch (e) {}
+      }
+    }
   }
 
   getSectorConfig(sectorId) {
     return this.sectorConfigs[sectorId] || null;
   }
 
-  updateSectorConfig(sectorId, config) {
+  async updateSectorConfig(sectorId, config) {
     this.sectorConfigs[sectorId] = {
       ...this.sectorConfigs[sectorId],
       ...config
     };
-    this.saveConfigs();
+    await this.saveConfigs();
+    // Also push single sector update to backend
+    if (this.backendAvailable) {
+      try { await api.post(`/api/sectors/${sectorId}`, this.sectorConfigs[sectorId]); } catch (e) {}
+    }
     return this.sectorConfigs[sectorId];
   }
 

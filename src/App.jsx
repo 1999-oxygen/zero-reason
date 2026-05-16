@@ -17,6 +17,7 @@ import posService from './services/posIntegration';
 import cameraService from './services/cameraIntegration';
 import aiDetectionService from './services/aiDetection';
 import sectorAIConfig from './services/sectorAIConfig';
+import authService from './services/authService';
 
 // --- AI API INTEGRATION (via Netlify Function) ---
 const callGeminiAPI = async (prompt) => {
@@ -106,10 +107,45 @@ export default function App() {
     autoRecordSuspicious: true
   });
   const [aiInitialized, setAiInitialized] = useState(false);
-  
+
+  // Authentication State
+  const [user, setUser] = useState(null);
+  const [isAuthenticated, setIsAuthenticated] = useState(false);
+
   // Sector-Specific AI Configuration State
   const [sectorConfigs, setSectorConfigs] = useState(sectorAIConfig.getAllSectorConfigs());
   const [selectedSectorForConfig, setSelectedSectorForConfig] = useState(null);
+
+  // Handle authentication changes
+  const handleAuthChange = (userData) => {
+    setUser(userData);
+    setIsAuthenticated(!!userData);
+    // Reload user-specific data when authentication changes
+    if (userData) {
+      loadUserData();
+    }
+  };
+
+  // Load user-specific data when authenticated
+  const loadUserData = async () => {
+    try {
+      if (!authService.isAuthenticated()) return;
+
+      // Load user's cameras
+      const userCameras = await authService.get(`${import.meta.env.VITE_API_URL || 'https://omnivision-backend-608881410748.us-central1.run.app'}/api/auth/user/cameras`);
+      if (userCameras) {
+        // Update camera service with user's cameras
+      }
+
+      // Load user's sector configs
+      const userSectors = await authService.get(`${import.meta.env.VITE_API_URL || 'https://omnivision-backend-608881410748.us-central1.run.app'}/api/auth/user/sectors`);
+      if (userSectors) {
+        // Update sector configs with user's data
+      }
+    } catch (e) {
+      console.error('Failed to load user data:', e);
+    }
+  };
 
   // Define the different industry modules
   const modules = [
@@ -782,7 +818,7 @@ export default function App() {
               <span className="absolute top-1.5 right-1.5 w-2 h-2 bg-red-500 rounded-full animate-pulse"></span>
             </button>
             <div className="flex items-center pl-4 border-l border-slate-800">
-              <GoogleAuth />
+              <GoogleAuth onAuthChange={handleAuthChange} />
             </div>
           </div>
         </header>

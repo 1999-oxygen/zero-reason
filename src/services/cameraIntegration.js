@@ -1,5 +1,11 @@
 import { api } from './apiClient';
 import { API_BASE_URL } from '../config';
+import authService from './authService';
+
+// Helper to get user-specific endpoint if authenticated
+const getUserEndpoint = (endpoint) => {
+  return authService.isAuthenticated() ? endpoint.replace('/api/', '/api/auth/user/') : endpoint;
+};
 
 // Camera Integration Service
 // Supports: Webcam, IP Cameras (RTSP/HTTP), Phone Cameras (IP Webcam, DroidCam)
@@ -17,8 +23,9 @@ class CameraIntegrationService {
       const res = await fetch(`${API_BASE_URL}/api/health`, { method: 'GET', mode: 'cors' });
       if (res.ok) {
         this.backendAvailable = true;
-        // Sync cameras from backend
-        const remote = await api.get('/api/cameras');
+        // Sync cameras from backend using user-specific endpoint if authenticated
+        const endpoint = getUserEndpoint('/api/cameras');
+        const remote = await api.get(endpoint);
         if (remote && remote.length > 0) {
           this.cameras = remote;
         }
@@ -36,30 +43,25 @@ class CameraIntegrationService {
       type: config.type, // 'webcam', 'ip', 'phone'
       url: config.url || null,
       username: config.username || null,
-      password: config.password || null,
-      location: config.location || 'Unknown',
-      module: config.module || 'retail', // Which AI module to use
-      status: 'offline'
     };
-
     this.cameras.push(camera);
-    // Sync to backend
     if (this.backendAvailable) {
-      try { await api.post('/api/cameras', camera); } catch (e) {}
+      try {
+        const endpoint = getUserEndpoint('/api/cameras');
+        await api.post(endpoint, camera);
+      } catch (e) {}
     }
     return camera;
   }
 
-  // Remove a camera
+  // Remove a camera configuration
   async removeCamera(cameraId) {
-    const index = this.cameras.findIndex(c => c.id === cameraId);
-    if (index > -1) {
-      this.stopCamera(cameraId);
-      this.cameras.splice(index, 1);
-      if (this.backendAvailable) {
-        try { await api.delete(`/api/cameras/${cameraId}`); } catch (e) {}
-      }
-      return true;
+    this.cameras = this.cameras.filter(c => c.id !== cameraId);
+    if (this.backendAvailable) {
+      try {
+        const endpoint = getUserEndpoint(`/api/cameras/${cameraId}`);
+        await api.delete(endpoint);
+      } catch (e) {}
     }
     return false;
   }

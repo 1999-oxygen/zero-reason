@@ -1,5 +1,11 @@
 import { api } from './apiClient';
 import { API_BASE_URL } from '../config';
+import authService from './authService';
+
+// Helper to get user-specific endpoint if authenticated
+const getUserEndpoint = (endpoint) => {
+  return authService.isAuthenticated() ? endpoint.replace('/api/', '/api/auth/user/') : endpoint;
+};
 
 class SectorAIConfigService {
   constructor() {
@@ -13,8 +19,9 @@ class SectorAIConfigService {
       const res = await fetch(`${API_BASE_URL}/api/health`, { method: 'GET', mode: 'cors' });
       if (res.ok) {
         this.backendAvailable = true;
-        // Sync from backend on startup
-        const remote = await api.get('/api/sectors');
+        // Sync from backend on startup using user-specific endpoint if authenticated
+        const endpoint = getUserEndpoint('/api/sectors');
+        const remote = await api.get(endpoint);
         if (remote && Object.keys(remote).length > 0) {
           this.sectorConfigs = { ...this.sectorConfigs, ...remote };
         }
@@ -153,10 +160,13 @@ class SectorAIConfigService {
 
   async saveConfigs() {
     localStorage.setItem('sectorAIConfigs', JSON.stringify(this.sectorConfigs));
-    // Sync to backend if available
+    // Sync to backend if available using user-specific endpoint if authenticated
     if (this.backendAvailable) {
       for (const [id, cfg] of Object.entries(this.sectorConfigs)) {
-        try { await api.post(`/api/sectors/${id}`, cfg); } catch (e) {}
+        try {
+          const endpoint = getUserEndpoint(`/api/sectors/${id}`);
+          await api.post(endpoint, cfg);
+        } catch (e) {}
       }
     }
   }

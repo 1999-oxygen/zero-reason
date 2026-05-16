@@ -112,9 +112,23 @@ export default function GoogleAuth({ onAuthChange }) {
     setUser(null);
     onAuthChange?.(null);
 
-    // Sign out from Google
+    // Sign out from Google and reinitialize button
     if (window.google) {
       window.google.accounts.id.disableAutoSelect();
+      window.google.accounts.id.prompt();
+      // Re-render the button after a short delay
+      setTimeout(() => {
+        window.google.accounts.id.renderButton(
+          document.getElementById('google-signin-button'),
+          {
+            theme: 'filled_black',
+            size: 'large',
+            text: 'signin_with',
+            shape: 'rectangular',
+            logo_alignment: 'left'
+          }
+        );
+      }, 100);
     }
   };
 

@@ -1,14 +1,17 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { 
+import {
   Store, Utensils, ShieldAlert, GraduationCap, Tractor,
   Video, Bell, Search, AlertTriangle, CheckCircle, Clock,
   Activity, Settings, Users, ArrowRight, Map, HeartPulse,
   BrainCircuit, LayoutDashboard, Fingerprint, DoorOpen, Coffee,
   Sparkles, X, Loader2, PlayCircle, Film, Save, Camera, Plus, Trash2, Eye,
-  Shield
+  Wine, Music, Shield
 } from 'lucide-react';
 import { VideoPlayer } from './components/VideoRecorder';
 import { CameraViewer, CameraGridView } from './components/CameraViewer';
+import TrainingImageManager from './components/TrainingImageManager';
+import AlertsDashboard from './components/AlertsDashboard';
+import LiquorStoreDashboard from './components/LiquorStoreDashboard';
 import GoogleAuth from './components/GoogleAuth';
 import AccessCodeGate from './components/AccessCodeGate';
 import AdminPanel from './components/AdminPanel';
@@ -165,6 +168,8 @@ export default function App() {
   const modules = [
     { id: 'retail', name: 'Retail & Shoes', icon: Store, color: 'text-blue-500', bg: 'bg-blue-500/10' },
     { id: 'hospitality', name: 'Hotels & Dining', icon: Utensils, color: 'text-orange-500', bg: 'bg-orange-500/10' },
+    { id: 'liquor', name: 'Liquor Store', icon: Wine, color: 'text-purple-500', bg: 'bg-purple-500/10' },
+    { id: 'clubs', name: 'Nightclubs & Bars', icon: Music, color: 'text-pink-500', bg: 'bg-pink-500/10' },
     { id: 'security', name: 'Facility Security', icon: ShieldAlert, color: 'text-red-500', bg: 'bg-red-500/10' },
     { id: 'education', name: 'Education & Wellness', icon: GraduationCap, color: 'text-purple-500', bg: 'bg-purple-500/10' },
     { id: 'agriculture', name: 'Livestock & Farms', icon: Tractor, color: 'text-emerald-500', bg: 'bg-emerald-500/10' }
@@ -565,6 +570,37 @@ export default function App() {
                 <div className="my-4 border-t border-slate-800"></div>
                 <h3 className="text-sm font-bold text-slate-400 uppercase mb-4">AI Curriculum Insights</h3>
                 <LogEntry time="Today" title="Student K-42 Analysis" desc="Low group participation. High visual focus on puzzles. Suggest kinesthetic learning modules." type="success" onAnalyze={handleAnalyzeIncident} />
+              </div>
+            </div>
+          </div>
+        );
+
+      case 'liquor':
+        return <LiquorStoreDashboard />;
+
+      case 'clubs':
+        return (
+          <div className="space-y-6 animate-in fade-in">
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <StatCard title="Active Patrons" value="156" icon={Music} color="pink" />
+              <StatCard title="Bouncer Alerts" value="3" icon={Shield} color="red" alert />
+              <StatCard title="VIP Access" value="12" icon={Users} color="emerald" />
+            </div>
+            <div className="flex gap-6 h-[400px]">
+              <div className="flex-1 bg-slate-900 rounded-2xl border border-slate-800 overflow-hidden relative">
+                <div className="absolute inset-0 bg-[url('https://images.unsplash.com/photo-1566737237500-90a7f88a8462?q=80&w=1974&auto=format&fit=crop')] bg-cover bg-center opacity-40"></div>
+                {/* Crowd Density Detection */}
+                <div className="absolute top-1/4 left-1/4 w-48 h-64 border-2 border-yellow-500 bg-yellow-500/20 rounded-lg">
+                  <div className="absolute -top-8 left-[-2px] bg-yellow-500 text-white text-[10px] font-bold px-2 py-1 rounded">
+                    Zone: Dance Floor - HIGH DENSITY
+                  </div>
+                </div>
+              </div>
+              <div className="w-80 bg-slate-900 rounded-2xl border border-slate-800 p-4 space-y-3">
+                <h3 className="text-white font-bold mb-3">Recent Incidents</h3>
+                <LogEntry time="23:45" title="Overcrowding Alert" desc="Dance floor exceeds capacity limit." type="warning" onAnalyze={handleAnalyzeIncident} />
+                <LogEntry time="23:42" title="ID Check Required" desc="Guest at entrance appears underage." type="danger" onAnalyze={handleAnalyzeIncident} />
+                <LogEntry time="23:38" title="VIP Access" desc="Guest 882 entered VIP lounge." type="success" onAnalyze={handleAnalyzeIncident} />
               </div>
             </div>
           </div>

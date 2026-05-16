@@ -18,6 +18,7 @@ import AdminPanel from './components/AdminPanel';
 import posService from './services/posIntegration';
 import cameraService from './services/cameraIntegration';
 import aiDetectionService from './services/aiDetection';
+import sectorAIConfig from './services/sectorAIConfig';
 
 // --- AI API INTEGRATION (via Netlify Function) ---
 const callGeminiAPI = async (prompt) => {
@@ -163,6 +164,10 @@ export default function App() {
     autoRecordSuspicious: true
   });
   const [aiInitialized, setAiInitialized] = useState(false);
+
+  // Sector-Specific AI Configuration State
+  const [sectorConfigs, setSectorConfigs] = useState(sectorAIConfig.getAllSectorConfigs());
+  const [selectedSectorForConfig, setSelectedSectorForConfig] = useState(null);
 
   // Define the different industry modules
   const modules = [
@@ -886,7 +891,166 @@ export default function App() {
           ) : activeView === 'settings' ? (
             <div className="space-y-6 max-w-4xl">
               <h2 className="text-2xl font-bold text-white">System Settings</h2>
-              
+
+              {/* Sector-Specific AI Configuration */}
+              <div className="bg-slate-900 rounded-xl border border-slate-800 p-6">
+                <div className="flex items-center justify-between mb-6">
+                  <div>
+                    <h3 className="text-lg font-semibold text-white">Sector-Specific AI Models</h3>
+                    <p className="text-xs text-slate-400 mt-1">
+                      Configure custom AI models and training databases for each business sector
+                    </p>
+                  </div>
+                </div>
+
+                {/* Sector Selection */}
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-6">
+                  {modules.map((module) => (
+                    <button
+                      key={module.id}
+                      onClick={() => setSelectedSectorForConfig(module.id)}
+                      className={`p-4 rounded-lg border transition-all ${
+                        selectedSectorForConfig === module.id
+                          ? `${module.bg} ${module.color} border-${module.color.split('-')[1]}-500/50 font-semibold`
+                          : 'bg-slate-950 border-slate-800 text-slate-400 hover:border-slate-700'
+                      }`}
+                    >
+                      <module.icon className={`w-6 h-6 mx-auto mb-2 ${
+                        selectedSectorForConfig === module.id ? module.color : 'text-slate-500'
+                      }`} />
+                      <p className="text-xs text-center">{module.name}</p>
+                    </button>
+                  ))}
+                </div>
+
+                {/* Sector Configuration Panel */}
+                {selectedSectorForConfig && sectorConfigs[selectedSectorForConfig] && (
+                  <div className="space-y-4 bg-slate-950 rounded-lg p-6 border border-slate-800">
+                    <div className="flex items-center justify-between pb-4 border-b border-slate-800">
+                      <h4 className="font-semibold text-white flex items-center gap-2">
+                        {modules.find(m => m.id === selectedSectorForConfig)?.icon &&
+                          React.createElement(modules.find(m => m.id === selectedSectorForConfig).icon, {
+                            className: `w-5 h-5 ${modules.find(m => m.id === selectedSectorForConfig)?.color}`
+                          })
+                        }
+                        {sectorConfigs[selectedSectorForConfig].name} AI Configuration
+                      </h4>
+                      <label className="relative inline-flex items-center cursor-pointer">
+                        <input
+                          type="checkbox"
+                          checked={sectorConfigs[selectedSectorForConfig].enabled}
+                          onChange={(e) => {
+                            const updated = sectorAIConfig.updateSectorConfig(selectedSectorForConfig, {
+                              enabled: e.target.checked
+                            });
+                            setSectorConfigs({ ...sectorConfigs, [selectedSectorForConfig]: updated });
+                          }}
+                          className="sr-only peer"
+                        />
+                        <div className="w-11 h-6 bg-slate-700 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-emerald-500"></div>
+                      </label>
+                    </div>
+
+                    {/* AI Model Selection */}
+                    <div>
+                      <label className="block text-sm font-medium text-slate-300 mb-2">AI Model Type</label>
+                      <select
+                        value={sectorConfigs[selectedSectorForConfig].aiModel}
+                        onChange={(e) => {
+                          const updated = sectorAIConfig.updateSectorConfig(selectedSectorForConfig, {
+                            aiModel: e.target.value
+                          });
+                          setSectorConfigs({ ...sectorConfigs, [selectedSectorForConfig]: updated });
+                        }}
+                        className="w-full px-4 py-2 bg-slate-900 border border-slate-700 rounded-lg text-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      >
+                        <option value="general-retail">General Retail Detection</option>
+                        <option value="hospitality">Hospitality & Dining</option>
+                        <option value="liquor-specialized">Liquor Store Specialized</option>
+                        <option value="nightlife-specialized">Nightlife & Clubs Specialized</option>
+                        <option value="security">Security & Surveillance</option>
+                        <option value="agriculture">Agriculture & Livestock</option>
+                        <option value="education">Education & Wellness</option>
+                        <option value="custom">Custom Trained Model</option>
+                      </select>
+                    </div>
+
+                    {/* Custom ML Model URL */}
+                    <div>
+                      <label className="block text-sm font-medium text-slate-300 mb-2">
+                        Custom ML Model URL (Optional)
+                        <span className="text-xs text-slate-500 ml-2">Roboflow, TensorFlow.js, etc.</span>
+                      </label>
+                      <input
+                        type="text"
+                        value={sectorConfigs[selectedSectorForConfig].mlModelUrl || ''}
+                        onChange={(e) => {
+                          const updated = sectorAIConfig.updateSectorConfig(selectedSectorForConfig, {
+                            mlModelUrl: e.target.value
+                          });
+                          setSectorConfigs({ ...sectorConfigs, [selectedSectorForConfig]: updated });
+                        }}
+                        placeholder="https://detect.roboflow.com/your-model/1"
+                        className="w-full px-4 py-2 bg-slate-900 border border-slate-700 rounded-lg text-slate-200 placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      />
+                    </div>
+
+                    {/* Detection Types */}
+                    <div>
+                      <label className="block text-sm font-medium text-slate-300 mb-2">Detection Types</label>
+                      <div className="grid grid-cols-2 gap-2">
+                        {['theft', 'shoplifting', 'dine_dash', 'intrusion', 'violence', 'fraud'].map((type) => (
+                          <label key={type} className="flex items-center space-x-2">
+                            <input
+                              type="checkbox"
+                              checked={sectorConfigs[selectedSectorForConfig].detectionTypes?.includes(type)}
+                              onChange={(e) => {
+                                const currentTypes = sectorConfigs[selectedSectorForConfig].detectionTypes || [];
+                                const updatedTypes = e.target.checked
+                                  ? [...currentTypes, type]
+                                  : currentTypes.filter(t => t !== type);
+                                const updated = sectorAIConfig.updateSectorConfig(selectedSectorForConfig, {
+                                  detectionTypes: updatedTypes
+                                });
+                                setSectorConfigs({ ...sectorConfigs, [selectedSectorForConfig]: updated });
+                              }}
+                              className="rounded bg-slate-800 border-slate-700 text-blue-500 focus:ring-blue-500"
+                            />
+                            <span className="text-sm text-slate-300 capitalize">{type.replace('_', ' ')}</span>
+                          </label>
+                        ))}
+                      </div>
+                    </div>
+
+                    {/* Confidence Threshold */}
+                    <div>
+                      <label className="block text-sm font-medium text-slate-300 mb-2">
+                        Confidence Threshold: {sectorConfigs[selectedSectorForConfig].confidenceThreshold}
+                      </label>
+                      <input
+                        type="range"
+                        min="0.1"
+                        max="1.0"
+                        step="0.05"
+                        value={sectorConfigs[selectedSectorForConfig].confidenceThreshold}
+                        onChange={(e) => {
+                          const updated = sectorAIConfig.updateSectorConfig(selectedSectorForConfig, {
+                            confidenceThreshold: parseFloat(e.target.value)
+                          });
+                          setSectorConfigs({ ...sectorConfigs, [selectedSectorForConfig]: updated });
+                        }}
+                        className="w-full"
+                      />
+                    </div>
+
+                    {/* Training Image Manager */}
+                    <div className="pt-4 border-t border-slate-800">
+                      <TrainingImageManager sectorId={selectedSectorForConfig} />
+                    </div>
+                  </div>
+                )}
+              </div>
+
               {/* POS Integration Settings */}
               <div className="bg-slate-900 rounded-xl border border-slate-800 p-6">
                 <h3 className="text-lg font-semibold text-white mb-4">POS Integration</h3>

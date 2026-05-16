@@ -83,6 +83,19 @@ brain_mgr = BrainManager() if AI_BRAIN_AVAILABLE else None
 #  HEALTH & STATUS
 # ═══════════════════════════════════════════════════════════════
 
+@app.get("/")
+def root():
+    """Root endpoint - redirects to health check"""
+    return {
+        "service": "OmniVision Backend",
+        "version": "2.0.0",
+        "status": "running",
+        "health_check": "/api/health",
+        "api_docs": "/docs",
+        "message": "Welcome to OmniVision API"
+    }
+
+
 @app.get("/api/health")
 def health():
     return {

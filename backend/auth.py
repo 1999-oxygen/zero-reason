@@ -8,6 +8,7 @@ from typing import Optional, Dict
 from google.oauth2 import id_token
 from google.auth.transport import requests
 import database as db
+import database_users as db_users
 
 # Google OAuth Configuration
 GOOGLE_CLIENT_ID = "48750229292-ljj00ef6sv9lvjh5c2rmcromvgpt9ro7.apps.googleusercontent.com"  # Set via environment variable
@@ -163,19 +164,21 @@ def initialize_user_sectors(user_id: int):
         }
     ]
 
-    conn = db.get_connection()
+    conn = db_users.get_connection()
     cursor = conn.cursor()
 
     for sector in default_sectors:
         cursor.execute('''
-            INSERT INTO sector_configs (user_id, sector_id, name, detection_types, confidence_threshold)
-            VALUES (?, ?, ?, ?, ?)
+            INSERT INTO user_sector_configs (user_id, sector_id, config_data, updated_at)
+            VALUES (?, ?, ?, CURRENT_TIMESTAMP)
         ''', (
             user_id,
             sector['sector_id'],
-            sector['name'],
-            str(sector['detection_types']),
-            sector['confidence_threshold']
+            json.dumps({
+                'name': sector['name'],
+                'detection_types': sector['detection_types'],
+                'confidence_threshold': sector['confidence_threshold']
+            })
         ))
 
     conn.commit()

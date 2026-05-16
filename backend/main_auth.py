@@ -5,7 +5,6 @@ Add these to main.py
 from fastapi import APIRouter, HTTPException, Depends, Header
 from pydantic import BaseModel
 from typing import Optional
-import os
 import auth
 import database_users as db_users
 
@@ -150,18 +149,6 @@ async def save_user_camera(
     return saved
 
 
-@router.post("/verify-access-code")
-async def verify_access_code(request: AccessCodeRequest):
-    """Verify access code for app access"""
-    # Get the access code from environment variable or database
-    valid_code = os.getenv("APP_ACCESS_CODE", "OMNI2024")
-    
-    if request.access_code == valid_code:
-        return {"valid": True, "message": "Access code verified"}
-    else:
-        return {"valid": False, "message": "Invalid access code"}
-
-
 @router.delete("/user/cameras/{camera_id}")
 async def delete_user_camera_endpoint(
     camera_id: str,
@@ -170,6 +157,27 @@ async def delete_user_camera_endpoint(
     """Delete camera for current user"""
     db_users.delete_user_camera(user_id, camera_id)
     return {"ok": True}
+
+
+@router.post("/verify-access-code")
+async def verify_access_code(request: AccessCodeRequest):
+    """Verify access code for app access"""
+    # Check against database access codes
+    valid = db_users.verify_access_code(request.access_code)
+
+    if valid:
+        return {"valid": True, "message": "Access code verified"}
+    else:
+        # Fallback to environment variable for backward compatibility
+        valid_code = os.getenv("APP_ACCESS_CODE", "OMNI2024")
+        if request.access_code == valid_code:
+            # Create this code in database for future use
+            try:
+                db_users.create_access_code(request.access_code)
+            except:
+                pass
+            return {"valid": True, "message": "Access code verified"}
+        return {"valid": False, "message": "Invalid access code"}
 
 
 @router.get("/user/alerts")
@@ -237,3 +245,67 @@ async def delete_user_training_image_endpoint(
     """Delete training image"""
     db_users.delete_user_training_image(user_id, image_id)
     return {"ok": True}
+
+
+# ============ ADMIN ENDPOINTS ============
+
+class UpdateAccessCodeRequest(BaseModel):
+    old_code: str
+    new_code: str
+
+
+class SetUserAccessDurationRequest(BaseModel):
+    user_id: int
+    duration_hours: int
+
+
+class ApproveUserRequest(BaseModel):
+    user_id: int
+    approved: bool
+
+
+@router.post("/admin/update-access-code")
+async def admin_update_access_code(request: UpdateAccessCodeRequest):
+    """Update access code (admin only)"""
+    success = db_users.update_access_code(request.old_code, request.new_code)
+    if success:
+        return {"ok": True, "message": "Access code updated successfully"}
+    return {"ok": False, "message": "Failed to update access code"}
+
+
+@router.post("/admin/create-access-code")
+async def admin_create_access_code(code: str):
+    """Create new access code (admin only)"""
+    try:
+        result = db_users.create_access_code(code)
+        return {"ok": True, "code": result}
+    except Exception as e:
+        return {"ok": False, "message": str(e)}
+
+
+@router.get("/admin/access-codes")
+async def admin_get_access_codes():
+    """Get all access codes (admin only)"""
+    codes = db_users.get_all_access_codes()
+    return codes
+
+
+@router.post("/admin/set-user-access-duration")
+async def admin_set_user_access_duration(request: SetUserAccessDurationRequest):
+    """Set user access duration (admin only)"""
+    db_users.set_user_access_duration(request.user_id, request.duration_hours)
+    return {"ok": True, "message": "User access duration updated"}
+
+
+@router.get("/admin/users")
+async def admin_get_users():
+    """Get all users with access info (admin only)"""
+    users = db_users.get_all_users_with_access_info()
+    return users
+
+
+@router.post("/admin/approve-user")
+async def admin_approve_user(request: ApproveUserRequest):
+    """Approve or disapprove user (admin only)"""
+    db_users.approve_user(request.user_id, request.approved)
+    return {"ok": True, "message": "User approval status updated"}

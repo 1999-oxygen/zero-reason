@@ -31,7 +31,10 @@ def init_user_tables():
             name TEXT,
             picture TEXT,
             created_at TEXT DEFAULT CURRENT_TIMESTAMP,
-            last_login TEXT DEFAULT CURRENT_TIMESTAMP
+            last_login TEXT DEFAULT CURRENT_TIMESTAMP,
+            access_duration_hours INTEGER DEFAULT NULL,
+            access_expires_at TEXT DEFAULT NULL,
+            is_approved INTEGER DEFAULT 1
         )
     ''')
 
@@ -45,6 +48,16 @@ def init_user_tables():
             updated_at TEXT DEFAULT CURRENT_TIMESTAMP,
             FOREIGN KEY (user_id) REFERENCES users(id),
             UNIQUE(user_id, sector_id)
+        )
+    ''')
+
+    # Access codes table
+    cursor.execute('''
+        CREATE TABLE IF NOT EXISTS access_codes (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            code TEXT UNIQUE NOT NULL,
+            created_at TEXT DEFAULT CURRENT_TIMESTAMP,
+            is_active INTEGER DEFAULT 1
         )
     ''')
 
@@ -371,5 +384,148 @@ def delete_user_training_image(user_id: int, image_id: int):
         "DELETE FROM user_training_images WHERE user_id = ? AND id = ?",
         (user_id, image_id)
     )
+    conn.commit()
+    conn.close()
+
+
+# ============ ACCESS CODE OPERATIONS ============
+
+def create_access_code(code: str) -> Dict:
+    """Create a new access code"""
+    conn = get_connection()
+    cursor = conn.cursor()
+
+    cursor.execute('''
+        INSERT INTO access_codes (code, is_active)
+        VALUES (?, 1)
+    ''', (code,))
+
+    conn.commit()
+    cursor.execute("SELECT * FROM access_codes WHERE code = ?", (code,))
+    row = cursor.fetchone()
+    conn.close()
+
+    return dict(row)
+
+
+def verify_access_code(code: str) -> bool:
+    """Verify if access code is valid and active"""
+    conn = get_connection()
+    cursor = conn.cursor()
+
+    cursor.execute("SELECT * FROM access_codes WHERE code = ? AND is_active = 1", (code,))
+    row = cursor.fetchone()
+    conn.close()
+
+    return row is not None
+
+
+def get_all_access_codes() -> List[Dict]:
+    """Get all access codes"""
+    conn = get_connection()
+    cursor = conn.cursor()
+
+    cursor.execute("SELECT * FROM access_codes ORDER BY created_at DESC")
+    rows = cursor.fetchall()
+    conn.close()
+
+    return [dict(row) for row in rows]
+
+
+def update_access_code(old_code: str, new_code: str) -> bool:
+    """Update an access code"""
+    conn = get_connection()
+    cursor = conn.cursor()
+
+    cursor.execute('''
+        UPDATE access_codes SET code = ? WHERE code = ?
+    ''', (new_code, old_code))
+
+    conn.commit()
+    conn.close()
+
+    return True
+
+
+def deactivate_access_code(code: str) -> bool:
+    """Deactivate an access code"""
+    conn = get_connection()
+    cursor = conn.cursor()
+
+    cursor.execute("UPDATE access_codes SET is_active = 0 WHERE code = ?", (code,))
+    conn.commit()
+    conn.close()
+
+    return True
+
+
+# ============ USER SESSION MANAGEMENT ============
+
+def set_user_access_duration(user_id: int, duration_hours: int):
+    """Set user access duration in hours"""
+    conn = get_connection()
+    cursor = conn.cursor()
+
+    # Calculate expiration time
+    from datetime import datetime, timedelta
+    expires_at = (datetime.now() + timedelta(hours=duration_hours)).isoformat()
+
+    cursor.execute('''
+        UPDATE users SET access_duration_hours = ?, access_expires_at = ?
+        WHERE id = ?
+    ''', (duration_hours, expires_at, user_id))
+
+    conn.commit()
+    conn.close()
+
+
+def check_user_access_expiration(user_id: int) -> bool:
+    """Check if user access has expired"""
+    conn = get_connection()
+    cursor = conn.cursor()
+
+    cursor.execute("SELECT access_expires_at, is_approved FROM users WHERE id = ?", (user_id,))
+    row = cursor.fetchone()
+    conn.close()
+
+    if not row:
+        return False
+
+    if row['is_approved'] == 0:
+        return False
+
+    if row['access_expires_at']:
+        from datetime import datetime
+        expires_at = datetime.fromisoformat(row['access_expires_at'])
+        return datetime.now() < expires_at
+
+    return True
+
+
+def get_all_users_with_access_info() -> List[Dict]:
+    """Get all users with access information"""
+    conn = get_connection()
+    cursor = conn.cursor()
+
+    cursor.execute('''
+        SELECT id, email, name, created_at, last_login,
+               access_duration_hours, access_expires_at, is_approved
+        FROM users ORDER BY created_at DESC
+    ''')
+    rows = cursor.fetchall()
+    conn.close()
+
+    return [dict(row) for row in rows]
+
+
+def approve_user(user_id: int, approved: bool = True):
+    """Approve or disapprove a user"""
+    conn = get_connection()
+    cursor = conn.cursor()
+
+    cursor.execute('''
+        UPDATE users SET is_approved = ? WHERE id = ?
+    ''', (1 if approved else 0, user_id))
+
     conn.commit()
     conn.close()

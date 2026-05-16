@@ -13,14 +13,10 @@ class SectorAIConfigService {
       const res = await fetch(`${API_BASE_URL}/api/health`, { method: 'GET', mode: 'cors' });
       if (res.ok) {
         this.backendAvailable = true;
-        // Sync from backend on startup using user-specific endpoint if authenticated
-        const endpoint = getUserEndpoint('/api/sectors');
-        const remote = await api.get(endpoint);
+        // Sync from backend on startup
+        const remote = await api.get('/api/sectors');
         if (remote && Object.keys(remote).length > 0) {
           this.sectorConfigs = { ...this.sectorConfigs, ...remote };
-        } else if (authService.isAuthenticated()) {
-          // Authenticated but no configs - keep default configs but they won't be saved to backend
-          // User can customize and they will be saved
         }
       }
     } catch (e) {

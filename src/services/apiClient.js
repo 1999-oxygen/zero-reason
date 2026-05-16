@@ -1,11 +1,10 @@
 /**
- * OmniVision API Client v2
+ * OmniVision API Client
  * Connects the React frontend to the Python FastAPI backend.
  * Falls back to localStorage when backend is offline (edge mode).
- * Updated: 2026-05-16 - Cloud Run deployment
  */
 
-const API_BASE = import.meta.env.VITE_API_URL || "https://omnivision-backend-608881410748.us-central1.run.app";
+const API_BASE = import.meta.env.VITE_API_URL || "http://localhost:8000";
 
 // ── HTTP Helpers ──
 async function request(method, path, body = null) {

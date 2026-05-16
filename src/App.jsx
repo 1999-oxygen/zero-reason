@@ -1159,12 +1159,14 @@ export default function App() {
                 </div>
               )}
 
-              {/* Camera Management */}
               <div className="bg-slate-900 rounded-xl border border-slate-800 p-6">
                 <div className="flex items-center justify-between mb-4">
                   <h3 className="text-lg font-semibold text-white">Camera Management</h3>
                   <button
-                    onClick={() => setShowAddCamera(!showAddCamera)}
+                    onClick={() => {
+                      setNewCamera(prev => ({ ...prev, module: activeModule }));
+                      setShowAddCamera(!showAddCamera);
+                    }}
                     className="flex items-center px-4 py-2 bg-blue-500/10 hover:bg-blue-500/20 text-blue-400 rounded-lg border border-blue-500/30 transition-colors font-semibold"
                   >
                     <Plus className="w-4 h-4 mr-2" />
@@ -1216,80 +1218,44 @@ export default function App() {
                       )}
 
                       {newCamera.type === 'phone' && (
-                        <div className="grid grid-cols-3 gap-3">
-                          <div>
-                            <label className="block text-xs text-slate-400 mb-1">Phone IP</label>
-                            <input
-                              type="text"
-                              value={newCamera.phoneIP}
-                              onChange={(e) => setNewCamera({ ...newCamera, phoneIP: e.target.value })}
-                              placeholder="192.168.1.50"
-                              className="w-full px-3 py-2 bg-slate-900 border border-slate-700 rounded text-slate-200 text-sm"
-                            />
-                          </div>
-                          <div>
-                            <label className="block text-xs text-slate-400 mb-1">Port</label>
-                            <input
-                              type="text"
-                              value={newCamera.phonePort}
-                              onChange={(e) => setNewCamera({ ...newCamera, phonePort: e.target.value })}
-                              placeholder="8080"
-                              className="w-full px-3 py-2 bg-slate-900 border border-slate-700 rounded text-slate-200 text-sm"
-                            />
-                          </div>
-                          <div>
-                            <label className="block text-xs text-slate-400 mb-1">App</label>
-                            <select
-                              value={newCamera.phoneApp}
-                              onChange={(e) => {
-                                const app = e.target.value;
-                                // Auto-set correct port based on app
-                                const portMap = {
-                                  'ipwebcam': '8080',
-                                  'droidcam': '4747',
-                                  'iriun': '8080'
-                                };
-                                setNewCamera({ 
-                                  ...newCamera, 
-                                  phoneApp: app,
-                                  phonePort: portMap[app] || '8080'
-                                });
-                              }}
-                              className="w-full px-3 py-2 bg-slate-900 border border-slate-700 rounded text-slate-200 text-sm"
-                            >
-                              <option value="ipwebcam">IP Webcam (8080)</option>
-                              <option value="droidcam">DroidCam (4747)</option>
-                              <option value="iriun">Iriun (8080)</option>
-                            </select>
-                          </div>
-                        </div>
-                      )}
-
-                      <div className="grid grid-cols-2 gap-3">
                         <div>
-                          <label className="block text-xs text-slate-400 mb-1">Location</label>
+                          <label className="block text-xs text-slate-400 mb-1">Phone IP Address</label>
                           <input
                             type="text"
-                            value={newCamera.location}
-                            onChange={(e) => setNewCamera({ ...newCamera, location: e.target.value })}
-                            placeholder="e.g., Main Store"
+                            value={newCamera.url}
+                            onChange={(e) => setNewCamera({ ...newCamera, url: e.target.value })}
+                            placeholder="http://192.168.1.102:4747/video"
                             className="w-full px-3 py-2 bg-slate-900 border border-slate-700 rounded text-slate-200 text-sm"
                           />
                         </div>
-                        <div>
-                          <label className="block text-xs text-slate-400 mb-1">AI Module</label>
-                          <select
-                            value={newCamera.module}
-                            onChange={(e) => setNewCamera({ ...newCamera, module: e.target.value })}
-                            className="w-full px-3 py-2 bg-slate-900 border border-slate-700 rounded text-slate-200 text-sm"
-                          >
-                            <option value="retail">Retail & Shoes</option>
-                            <option value="hospitality">Hotels & Dining</option>
-                            <option value="security">Facility Security</option>
-                            <option value="education">Education & Wellness</option>
-                            <option value="agriculture">Livestock & Farms</option>
-                          </select>
-                        </div>
+                      )}
+
+                      <div>
+                        <label className="block text-xs text-slate-400 mb-1">Resolution</label>
+                        <select
+                          value={newCamera.resolution}
+                          onChange={(e) => setNewCamera({ ...newCamera, resolution: e.target.value })}
+                          className="w-full px-3 py-2 bg-slate-900 border border-slate-700 rounded text-slate-200 text-sm"
+                        >
+                          <option value="640x480">640x480 (SD)</option>
+                          <option value="1280x720">1280x720 (HD)</option>
+                          <option value="1920x1080">1920x1080 (FHD)</option>
+                          <option value="3840x2160">3840x2160 (4K)</option>
+                        </select>
+                      </div>
+
+                      <div>
+                        <label className="block text-xs text-slate-400 mb-1">FPS</label>
+                        <select
+                          value={newCamera.fps}
+                          onChange={(e) => setNewCamera({ ...newCamera, fps: parseInt(e.target.value) })}
+                          className="w-full px-3 py-2 bg-slate-900 border border-slate-700 rounded text-slate-200 text-sm"
+                        >
+                          <option value="15">15 FPS</option>
+                          <option value="24">24 FPS</option>
+                          <option value="30">30 FPS</option>
+                          <option value="60">60 FPS</option>
+                        </select>
                       </div>
 
                       <div className="flex justify-end gap-2 pt-2">

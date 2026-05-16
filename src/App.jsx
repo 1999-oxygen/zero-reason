@@ -9,6 +9,8 @@ import {
 } from 'lucide-react';
 import { VideoPlayer } from './components/VideoRecorder';
 import { CameraViewer, CameraGridView } from './components/CameraViewer';
+import GoogleAuth from './components/GoogleAuth';
+import AccessCodeGate from './components/AccessCodeGate';
 import AdminPanel from './components/AdminPanel';
 import posService from './services/posIntegration';
 import cameraService from './services/cameraIntegration';
@@ -79,11 +81,61 @@ export default function App() {
   const [posTransactions, setPosTransactions] = useState([]);
   const [posStats, setPosStats] = useState(null);
 
+  // Authentication State
+  const [user, setUser] = useState(null);
+  const [isAuthenticated, setIsAuthenticated] = useState(false);
+
   // Access Code Verification State
   const [accessVerified, setAccessVerified] = useState(false);
 
   // Admin Panel State
   const [showAdminPanel, setShowAdminPanel] = useState(false);
+
+  // Admin State
+  const [isAdmin, setIsAdmin] = useState(false);
+
+  // Check if access code is already verified in session
+  useEffect(() => {
+    const verified = sessionStorage.getItem('access_verified');
+    if (verified === 'true') {
+      setAccessVerified(true);
+    }
+  }, []);
+
+  // Handle authentication changes
+  const handleAuthChange = async (userData) => {
+    setUser(userData);
+    setIsAuthenticated(!!userData);
+
+    // Check if user is admin
+    if (userData && userData.email) {
+      try {
+        const response = await fetch(`${API_BASE_URL}/api/auth/check-admin/${userData.email}`);
+        const data = await response.json();
+        setIsAdmin(data.is_admin);
+
+        // Skip access code for admin users
+        if (data.is_admin) {
+          setAccessVerified(true);
+          sessionStorage.setItem('access_verified', 'true');
+        }
+      } catch (e) {
+        console.error('Failed to check admin status:', e);
+        setIsAdmin(false);
+      }
+    }
+
+    // Reload user-specific data when authentication changes
+    if (userData) {
+      loadUserData();
+    }
+  };
+
+  // Handle access code verification
+  const handleAccessVerified = () => {
+    setAccessVerified(true);
+    sessionStorage.setItem('access_verified', 'true');
+  };
 
   // Camera Configuration State
   const [cameras, setCameras] = useState([]);
@@ -594,9 +646,14 @@ export default function App() {
   };
 
   return (
-    <div className="flex h-screen bg-slate-950 text-slate-300 font-sans">
-      {/* NEW ZERO Sidebar */}
-      <aside className="w-64 bg-slate-900 border-r border-slate-800 flex flex-col z-20">
+    <>
+      {/* Access Code Gate - Skip for admin users */}
+      {!accessVerified && !isAdmin && <AccessCodeGate onVerified={handleAccessVerified} />}
+
+      {/* Main App */}
+      <div className="flex h-screen bg-slate-950 text-slate-300 font-sans">
+        {/* NEW ZERO Sidebar */}
+        <aside className="w-64 bg-slate-900 border-r border-slate-800 flex flex-col z-20">
         <div className="h-16 flex items-center px-6 border-b border-slate-800">
           <div className="w-8 h-8 bg-gradient-to-br from-blue-500 to-purple-600 rounded-lg flex items-center justify-center mr-3 shadow-lg">
             <BrainCircuit className="w-5 h-5 text-white" />
@@ -711,14 +768,17 @@ export default function App() {
               <Bell className="w-5 h-5" />
               <span className="absolute top-1.5 right-1.5 w-2 h-2 bg-red-500 rounded-full animate-pulse"></span>
             </button>
-            <button
-              onClick={() => setShowAdminPanel(true)}
-              className="flex items-center gap-2 px-3 py-1.5 bg-slate-800 hover:bg-slate-700 rounded-lg border border-slate-700 transition-colors"
-              title="Admin Panel"
-            >
-              <Shield className="w-4 h-4 text-blue-400" />
-              <span className="text-sm text-white">Admin</span>
-            </button>
+            <GoogleAuth onAuthChange={handleAuthChange} />
+            {isAdmin && (
+              <button
+                onClick={() => setShowAdminPanel(true)}
+                className="flex items-center gap-2 px-3 py-1.5 bg-slate-800 hover:bg-slate-700 rounded-lg border border-slate-700 transition-colors"
+                title="Admin Panel"
+              >
+                <Shield className="w-4 h-4 text-blue-400" />
+                <span className="text-sm text-white">Admin</span>
+              </button>
+            )}
           </div>
         </header>
 
@@ -1362,7 +1422,8 @@ export default function App() {
           </div>
         </div>
       )}
-    </div>
+      </div>
+    </>
   );
 }
 

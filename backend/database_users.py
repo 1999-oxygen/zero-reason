@@ -34,7 +34,8 @@ def init_user_tables():
             last_login TEXT DEFAULT CURRENT_TIMESTAMP,
             access_duration_hours INTEGER DEFAULT NULL,
             access_expires_at TEXT DEFAULT NULL,
-            is_approved INTEGER DEFAULT 1
+            is_approved INTEGER DEFAULT 1,
+            is_admin INTEGER DEFAULT 0
         )
     ''')
 
@@ -529,3 +530,44 @@ def approve_user(user_id: int, approved: bool = True):
 
     conn.commit()
     conn.close()
+
+
+# ============ ADMIN EMAIL MANAGEMENT ============
+
+def set_admin_email(email: str):
+    """Set a user as admin by email"""
+    conn = get_connection()
+    cursor = conn.cursor()
+
+    cursor.execute('''
+        UPDATE users SET is_admin = 1 WHERE email = ?
+    ''', (email,))
+
+    conn.commit()
+    conn.close()
+
+
+def is_admin_user(email: str) -> bool:
+    """Check if a user is admin by email"""
+    conn = get_connection()
+    cursor = conn.cursor()
+
+    cursor.execute("SELECT is_admin FROM users WHERE email = ?", (email,))
+    row = cursor.fetchone()
+    conn.close()
+
+    if row and row['is_admin'] == 1:
+        return True
+    return False
+
+
+def get_admin_emails() -> List[str]:
+    """Get all admin emails"""
+    conn = get_connection()
+    cursor = conn.cursor()
+
+    cursor.execute("SELECT email FROM users WHERE is_admin = 1")
+    rows = cursor.fetchall()
+    conn.close()
+
+    return [row['email'] for row in rows]

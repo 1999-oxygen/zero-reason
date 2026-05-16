@@ -160,13 +160,17 @@ async def delete_user_camera_endpoint(
 
 
 @router.post("/verify-access-code")
-async def verify_access_code(request: AccessCodeRequest):
-    """Verify access code for app access"""
+async def verify_access_code(request: AccessCodeRequest, admin_email: Optional[str] = None):
+    """Verify access code for app access (skips for admin email)"""
+    # Skip access code verification for admin email
+    if admin_email and db_users.is_admin_user(admin_email):
+        return {"valid": True, "message": "Admin access granted", "is_admin": True}
+
     # Check against database access codes
     valid = db_users.verify_access_code(request.access_code)
 
     if valid:
-        return {"valid": True, "message": "Access code verified"}
+        return {"valid": True, "message": "Access code verified", "is_admin": False}
     else:
         # Fallback to environment variable for backward compatibility
         valid_code = os.getenv("APP_ACCESS_CODE", "OMNI2024")
@@ -176,8 +180,8 @@ async def verify_access_code(request: AccessCodeRequest):
                 db_users.create_access_code(request.access_code)
             except:
                 pass
-            return {"valid": True, "message": "Access code verified"}
-        return {"valid": False, "message": "Invalid access code"}
+            return {"valid": True, "message": "Access code verified", "is_admin": False}
+        return {"valid": False, "message": "Invalid access code", "is_admin": False}
 
 
 @router.get("/user/alerts")
@@ -309,3 +313,28 @@ async def admin_approve_user(request: ApproveUserRequest):
     """Approve or disapprove user (admin only)"""
     db_users.approve_user(request.user_id, request.approved)
     return {"ok": True, "message": "User approval status updated"}
+
+
+class SetAdminEmailRequest(BaseModel):
+    email: str
+
+
+@router.post("/admin/set-admin-email")
+async def admin_set_admin_email(request: SetAdminEmailRequest):
+    """Set a user as admin by email (admin only)"""
+    db_users.set_admin_email(request.email)
+    return {"ok": True, "message": f"Admin email set to {request.email}"}
+
+
+@router.get("/admin/emails")
+async def admin_get_admin_emails():
+    """Get all admin emails (admin only)"""
+    emails = db_users.get_admin_emails()
+    return {"emails": emails}
+
+
+@router.get("/check-admin/{email}")
+async def check_admin(email: str):
+    """Check if a user is admin by email (public endpoint)"""
+    is_admin = db_users.is_admin_user(email)
+    return {"is_admin": is_admin}

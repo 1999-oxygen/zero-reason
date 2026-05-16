@@ -12,6 +12,7 @@ import { CameraViewer, CameraGridView } from './components/CameraViewer';
 import TrainingImageManager from './components/TrainingImageManager';
 import AlertsDashboard from './components/AlertsDashboard';
 import LiquorStoreDashboard from './components/LiquorStoreDashboard';
+import GoogleAuth from './components/GoogleAuth';
 import posService from './services/posIntegration';
 import cameraService from './services/cameraIntegration';
 import aiDetectionService from './services/aiDetection';
@@ -781,7 +782,7 @@ export default function App() {
               <span className="absolute top-1.5 right-1.5 w-2 h-2 bg-red-500 rounded-full animate-pulse"></span>
             </button>
             <div className="flex items-center pl-4 border-l border-slate-800">
-              <div className="w-8 h-8 bg-blue-600 rounded-full flex items-center justify-center text-white text-xs font-bold">Admin</div>
+              <GoogleAuth />
             </div>
           </div>
         </header>

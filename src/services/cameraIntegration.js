@@ -1,4 +1,5 @@
 import { api } from './apiClient';
+import { API_BASE_URL } from '../config';
 
 // Camera Integration Service
 // Supports: Webcam, IP Cameras (RTSP/HTTP), Phone Cameras (IP Webcam, DroidCam)
@@ -13,7 +14,7 @@ class CameraIntegrationService {
 
   async _checkBackend() {
     try {
-      const res = await fetch('http://localhost:8000/api/health', { method: 'GET', mode: 'cors' });
+      const res = await fetch(`${API_BASE_URL}/api/health`, { method: 'GET', mode: 'cors' });
       if (res.ok) {
         this.backendAvailable = true;
         // Sync cameras from backend
@@ -139,8 +140,8 @@ class CameraIntegrationService {
       }
 
       // Use proxy server to avoid CORS and mixed content issues
-      // Python backend proxy runs on localhost:8000
-      const proxyUrl = `http://localhost:8000/api/camera-stream?ip=${phoneIP}&port=${defaultPort}&app=${app}`;
+      // Python backend proxy
+      const proxyUrl = `${API_BASE_URL}/api/camera-stream?ip=${phoneIP}&port=${defaultPort}&app=${app}`;
       
       // Log both the original camera URL and proxy URL for debugging
       const originalUrl = `http://${phoneIP}:${defaultPort}`;

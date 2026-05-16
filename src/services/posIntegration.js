@@ -1,4 +1,5 @@
 import { api } from './apiClient';
+import { API_BASE_URL } from '../config';
 
 // POS Integration Service for Loyverse and Square
 // This service provides unified API access to different POS systems
@@ -16,7 +17,7 @@ class POSIntegrationService {
 
   async _checkBackend() {
     try {
-      const res = await fetch('http://localhost:8000/api/health', { method: 'GET', mode: 'cors' });
+      const res = await fetch(`${API_BASE_URL}/api/health`, { method: 'GET', mode: 'cors' });
       if (res.ok) this.backendAvailable = true;
     } catch (e) {
       this.backendAvailable = false;

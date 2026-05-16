@@ -1,6 +1,7 @@
 import React, { useState, useRef, useCallback, useEffect } from 'react';
 import { Upload, X, Image, Tag, Trash2, Grid, List, CheckCircle, AlertTriangle, FolderOpen } from 'lucide-react';
 import { api } from '../services/apiClient';
+import { API_BASE_URL } from '../config';
 
 export default function TrainingImageManager({ sectorConfig, sectorId, onImagesChange }) {
   const [dragOver, setDragOver] = useState(false);
@@ -64,7 +65,7 @@ export default function TrainingImageManager({ sectorConfig, sectorId, onImagesC
           formData.append('file', file);
           formData.append('sector_id', sectorId);
           formData.append('label', '');
-          const result = await fetch('http://localhost:8000/api/training-images/upload', {
+          const result = await fetch(`${API_BASE_URL}/api/training-images/upload`, {
             method: 'POST',
             body: formData
           });
@@ -339,7 +340,7 @@ export default function TrainingImageManager({ sectorConfig, sectorId, onImagesC
                 onClick={() => setSelectedImage(img)}
               >
                 <img 
-                  src={backendAvailable ? `http://localhost:8000/api/training-images/${img.id}` : img.data} 
+                  src={backendAvailable ? `${API_BASE_URL}/api/training-images/${img.id}` : img.data} 
                   alt={img.name || 'Training image'}
                   className="w-full h-full object-cover cursor-pointer"
                 />
@@ -420,7 +421,7 @@ export default function TrainingImageManager({ sectorConfig, sectorId, onImagesC
               {/* Image Preview */}
               <div className="flex-1 bg-slate-950 p-4">
                 <img 
-                  src={backendAvailable ? `http://localhost:8000/api/training-images/${selectedImage.id}` : selectedImage.data} 
+                  src={backendAvailable ? `${API_BASE_URL}/api/training-images/${selectedImage.id}` : selectedImage.data} 
                   alt="Preview" 
                   className="w-full max-h-[300px] object-contain rounded-lg"
                 />

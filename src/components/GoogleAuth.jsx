@@ -58,16 +58,27 @@ export default function GoogleAuth({ onAuthChange }) {
       callback: handleGoogleResponse
     });
 
-    window.google.accounts.id.renderButton(
-      document.getElementById('google-signin-button'),
-      {
-        theme: 'filled_black',
-        size: 'large',
-        text: 'signin_with',
-        shape: 'rectangular',
-        logo_alignment: 'left'
+    // Wait for DOM element to be available
+    const renderButton = () => {
+      const buttonContainer = document.getElementById('google-signin-button');
+      if (buttonContainer) {
+        window.google.accounts.id.renderButton(
+          buttonContainer,
+          {
+            theme: 'filled_black',
+            size: 'large',
+            text: 'signin_with',
+            shape: 'rectangular',
+            logo_alignment: 'left'
+          }
+        );
+      } else {
+        // Retry after a short delay if element not found
+        setTimeout(renderButton, 100);
       }
-    );
+    };
+
+    renderButton();
   };
 
   const handleGoogleResponse = async (response) => {

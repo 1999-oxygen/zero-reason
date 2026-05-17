@@ -16,6 +16,7 @@ import GoogleAuth from './components/GoogleAuth';
 import AccessCodeGate from './components/AccessCodeGate';
 import AdminPanel from './components/AdminPanel';
 import UserMessaging from './components/UserMessaging';
+import MLModelConfig from './components/MLModelConfig';
 import { API_BASE_URL } from './config';
 import posService from './services/posIntegration';
 import cameraService from './services/cameraIntegration';
@@ -104,6 +105,8 @@ export default function App() {
   const [showAlerts, setShowAlerts] = useState(false);
   const [showMessaging, setShowMessaging] = useState(false);
   const [unreadAlertCount, setUnreadAlertCount] = useState(0);
+  const [showMLConfig, setShowMLConfig] = useState(false);
+  const [selectedCameraForML, setSelectedCameraForML] = useState(null);
   
   // Define sectors for alerts dashboard
   const sectors = [
@@ -147,9 +150,9 @@ export default function App() {
     }
 
     // Reload user-specific data when authentication changes
-    // Note: loadUserData will be implemented separately
     if (userData) {
       console.log('User authenticated:', userData.email);
+      loadUserCameras();
     }
   };
 
@@ -415,13 +418,56 @@ export default function App() {
   };
 
   // --- CAMERA MANAGEMENT HANDLERS ---
-  const initializeCameras = () => {
-    // Load mock cameras for demo
+  const loadUserCameras = async () => {
+    // Load user-specific cameras from backend if authenticated
+    const token = localStorage.getItem('jwt_token');
+    if (!token) {
+      // Use mock cameras for demo if not authenticated
+      const mockCameras = cameraService.getMockCameras();
+      setCameras(mockCameras);
+      return;
+    }
+
+    try {
+      const response = await fetch(`${API_BASE_URL}/api/auth/user/cameras`, {
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      });
+      
+      if (response.ok) {
+        const userCameras = await response.json();
+        if (userCameras && userCameras.length > 0) {
+          // Convert backend cameras to frontend format
+          const formattedCameras = userCameras.map(cam => ({
+            id: cam.id,
+            name: cam.name,
+            type: cam.type,
+            url: cam.url,
+            location: cam.location,
+            module: cam.module,
+            status: cam.status,
+            mlConfig: cam.ml_config ? JSON.parse(cam.ml_config) : null
+          }));
+          setCameras(formattedCameras);
+          console.log(`Loaded ${formattedCameras.length} user cameras`);
+          return;
+        }
+      }
+    } catch (e) {
+      console.error('Failed to load user cameras:', e);
+    }
+    
+    // Fallback to mock cameras
     const mockCameras = cameraService.getMockCameras();
     setCameras(mockCameras);
   };
 
-  const handleAddCamera = () => {
+  const initializeCameras = () => {
+    loadUserCameras();
+  };
+
+  const handleAddCamera = async () => {
     let camera;
     
     switch (newCamera.type) {
@@ -433,30 +479,56 @@ export default function App() {
           module: newCamera.module
         });
         break;
-        
-      case 'ip':
+      case 'url':
         camera = cameraService.addCamera({
           name: newCamera.name,
-          type: 'ip',
+          type: 'url',
           url: newCamera.url,
           location: newCamera.location,
           module: newCamera.module
         });
         break;
-        
       case 'phone':
-        const phoneUrl = `http://${newCamera.phoneIP}:${newCamera.phonePort}/video`;
         camera = cameraService.addCamera({
           name: newCamera.name,
           type: 'phone',
-          url: phoneUrl,
+          url: `http://${newCamera.phoneIP}:${newCamera.phonePort}/video`,
           location: newCamera.location,
-          module: newCamera.module
+          module: newCamera.module,
+          phoneIP: newCamera.phoneIP,
+          phonePort: newCamera.phonePort,
+          phoneApp: newCamera.phoneApp
         });
         break;
     }
 
     if (camera) {
+      // Save to backend if authenticated
+      const token = localStorage.getItem('jwt_token');
+      if (token) {
+        try {
+          await fetch(`${API_BASE_URL}/api/auth/user/cameras`, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'Authorization': `Bearer ${token}`
+            },
+            body: JSON.stringify({
+              id: camera.id,
+              name: camera.name,
+              type: camera.type,
+              url: camera.url,
+              location: camera.location,
+              module: camera.module,
+              status: 'offline'
+            })
+          });
+          console.log('Camera saved to backend:', camera.name);
+        } catch (e) {
+          console.error('Failed to save camera to backend:', e);
+        }
+      }
+      
       setCameras([...cameras, camera]);
       setShowAddCamera(false);
       setNewCamera({
@@ -472,9 +544,57 @@ export default function App() {
     }
   };
 
-  const handleRemoveCamera = (cameraId) => {
+  const handleRemoveCamera = async (cameraId) => {
+    // Delete from backend if authenticated
+    const token = localStorage.getItem('jwt_token');
+    if (token) {
+      try {
+        await fetch(`${API_BASE_URL}/api/auth/user/cameras/${cameraId}`, {
+          method: 'DELETE',
+          headers: {
+            'Authorization': `Bearer ${token}`
+          }
+        });
+        console.log('Camera deleted from backend:', cameraId);
+      } catch (e) {
+        console.error('Failed to delete camera from backend:', e);
+      }
+    }
+    
     cameraService.removeCamera(cameraId);
     setCameras(cameras.filter(c => c.id !== cameraId));
+  };
+
+  const handleSaveMLConfig = async (cameraId, mlConfig) => {
+    const token = localStorage.getItem('jwt_token');
+    if (token) {
+      try {
+        await fetch(`${API_BASE_URL}/api/auth/user/cameras/${cameraId}/ml-config`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${token}`
+          },
+          body: JSON.stringify({ ml_config: JSON.stringify(mlConfig) })
+        });
+        console.log('ML config saved to backend:', cameraId);
+      } catch (e) {
+        console.error('Failed to save ML config to backend:', e);
+      }
+    }
+    
+    // Update local state
+    setCameras(cameras.map(c => 
+      c.id === cameraId ? { ...c, mlConfig } : c
+    ));
+    
+    setShowMLConfig(false);
+    setSelectedCameraForML(null);
+  };
+
+  const openMLConfig = (camera) => {
+    setSelectedCameraForML(camera);
+    setShowMLConfig(true);
   };
 
   const testCameraConnection = async (cameraId) => {
@@ -498,6 +618,32 @@ export default function App() {
     localStorage.setItem('aiConfig', JSON.stringify(newConfig));
     // Reinitialize AI with new config
     aiDetectionService.initialize(newConfig);
+  };
+
+  const getCameraMLConfig = (cameraId) => {
+    const camera = cameras.find(c => c.id === cameraId);
+    return camera?.mlConfig || null;
+  };
+
+  const runCameraDetection = async (cameraId, frame) => {
+    const mlConfig = getCameraMLConfig(cameraId);
+    if (!mlConfig || !mlConfig.enabled) {
+      return null;
+    }
+
+    try {
+      // Use camera-specific ML config for detection
+      if (mlConfig.provider === 'roboflow' && mlConfig.apiKey && mlConfig.modelId) {
+        // Would integrate with Roboflow API here
+        console.log(`Running Roboflow detection on camera ${cameraId}`);
+        // Placeholder for actual implementation
+        return { detections: [], confidence: mlConfig.confidence };
+      }
+    } catch (error) {
+      console.error('Error running camera detection:', error);
+    }
+
+    return null;
   };
 
   // Simulated Data for different modules
@@ -1368,6 +1514,13 @@ export default function App() {
                       </div>
                       <div className="flex items-center gap-2">
                         <button
+                          onClick={() => openMLConfig(camera)}
+                          className="p-2 hover:bg-slate-800 rounded-lg transition-colors"
+                          title="Configure AI Model"
+                        >
+                          <BrainCircuit className="w-4 h-4 text-blue-400" />
+                        </button>
+                        <button
                           onClick={() => testCameraConnection(camera.id)}
                           className="p-2 hover:bg-slate-800 rounded-lg transition-colors"
                           title="Test Connection"
@@ -1672,6 +1825,18 @@ export default function App() {
         <UserMessaging 
           isAdmin={isAdmin}
           onClose={() => setShowMessaging(false)}
+        />
+      )}
+
+      {/* ML Model Configuration Modal */}
+      {showMLConfig && selectedCameraForML && (
+        <MLModelConfig
+          camera={selectedCameraForML}
+          onSave={handleSaveMLConfig}
+          onClose={() => {
+            setShowMLConfig(false);
+            setSelectedCameraForML(null);
+          }}
         />
       )}
       </div>

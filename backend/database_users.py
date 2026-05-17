@@ -58,9 +58,16 @@ def init_user_tables():
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             code TEXT UNIQUE NOT NULL,
             created_at TEXT DEFAULT CURRENT_TIMESTAMP,
-            is_active INTEGER DEFAULT 1
+            is_active INTEGER DEFAULT 1,
+            is_admin INTEGER DEFAULT 0
         )
     ''')
+    
+    # Add is_admin column if table exists and doesn't have it (migration)
+    cursor.execute("PRAGMA table_info(access_codes)")
+    columns = [col[1] for col in cursor.fetchall()]
+    if 'is_admin' not in columns:
+        cursor.execute("ALTER TABLE access_codes ADD COLUMN is_admin INTEGER DEFAULT 0")
 
     # User-specific cameras
     cursor.execute('''
@@ -435,16 +442,18 @@ def create_access_code(code: str) -> Dict:
     return dict(row)
 
 
-def verify_access_code(code: str) -> bool:
-    """Verify if access code is valid and active"""
+def verify_access_code(code: str) -> tuple[bool, bool]:
+    """Verify if access code is valid and active. Returns (is_valid, is_admin)"""
     conn = get_connection()
     cursor = conn.cursor()
 
-    cursor.execute("SELECT * FROM access_codes WHERE code = ? AND is_active = 1", (code,))
+    cursor.execute("SELECT is_admin FROM access_codes WHERE code = ? AND is_active = 1", (code,))
     row = cursor.fetchone()
     conn.close()
 
-    return row is not None
+    if row:
+        return (True, bool(row['is_admin']))
+    return (False, False)
 
 
 def get_all_access_codes() -> List[Dict]:
@@ -607,14 +616,21 @@ def seed_admin_data():
     cursor = conn.cursor()
     
     # Create default access codes if they don't exist
-    codes = ['OMNI2024', 'ADMIN2024']
-    for code in codes:
+    codes = {
+        'OMNI2024': 0,  # user code
+        'ADMIN2024': 1  # admin code
+    }
+    for code, is_admin in codes.items():
         cursor.execute("SELECT * FROM access_codes WHERE code = ?", (code,))
         if not cursor.fetchone():
-            cursor.execute("INSERT INTO access_codes (code, is_active) VALUES (?, 1)", (code,))
-            print(f"✓ Created access code: {code}")
+            cursor.execute("INSERT INTO access_codes (code, is_active, is_admin) VALUES (?, 1, ?)", (code, is_admin))
+            print(f"✓ Created access code: {code} (is_admin={is_admin})")
+        else:
+            # Update existing code to have is_admin flag
+            cursor.execute("UPDATE access_codes SET is_admin = ? WHERE code = ?", (is_admin, code))
+            print(f"✓ Updated access code: {code} (is_admin={is_admin})")
     
-    # Set admin email if user exists
+    # Force-set admin email (create user if doesn't exist)
     admin_email = "eightykings2@gmail.com"
     cursor.execute("SELECT * FROM users WHERE email = ?", (admin_email,))
     user = cursor.fetchone()
@@ -623,7 +639,12 @@ def seed_admin_data():
         cursor.execute("UPDATE users SET is_admin = 1 WHERE email = ?", (admin_email,))
         print(f"✓ Set {admin_email} as admin")
     else:
-        print(f"ℹ Admin email {admin_email} will be set when user first logs in")
+        # Create admin user manually
+        cursor.execute('''
+            INSERT INTO users (google_id, email, name, is_admin)
+            VALUES (?, ?, ?, 1)
+        ''', ('admin_manual', admin_email, 'Admin'))
+        print(f"✓ Created admin user: {admin_email}")
     
     conn.commit()
     conn.close()

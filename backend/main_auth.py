@@ -172,10 +172,10 @@ async def verify_access_code(request: AccessCodeRequest, admin_email: Optional[s
         return {"valid": True, "message": "Admin access granted", "is_admin": True}
 
     # Check against database access codes
-    valid = db_users.verify_access_code(request.access_code)
+    valid, is_admin_code = db_users.verify_access_code(request.access_code)
 
     if valid:
-        return {"valid": True, "message": "Access code verified", "is_admin": False}
+        return {"valid": True, "message": "Access code verified", "is_admin": is_admin_code}
     else:
         # Fallback to environment variable for backward compatibility
         valid_code = os.getenv("APP_ACCESS_CODE", "OMNI2024")

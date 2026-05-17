@@ -104,6 +104,16 @@ export default function App() {
   const [showAlerts, setShowAlerts] = useState(false);
   const [showMessaging, setShowMessaging] = useState(false);
   const [unreadAlertCount, setUnreadAlertCount] = useState(0);
+  
+  // Define sectors for alerts dashboard
+  const sectors = [
+    { id: 'retail', name: 'Retail', icon: 'Store' },
+    { id: 'liquor', name: 'Liquor Store', icon: 'Wine' },
+    { id: 'club', name: 'Club/Bar', icon: 'Music' },
+    { id: 'restaurant', name: 'Restaurant', icon: 'Utensils' },
+    { id: 'education', name: 'Education', icon: 'GraduationCap' },
+    { id: 'agriculture', name: 'Agriculture', icon: 'Tractor' }
+  ];
 
   // Check if access code is already verified in session
   useEffect(() => {
@@ -137,8 +147,9 @@ export default function App() {
     }
 
     // Reload user-specific data when authentication changes
+    // Note: loadUserData will be implemented separately
     if (userData) {
-      loadUserData();
+      console.log('User authenticated:', userData.email);
     }
   };
 
@@ -1646,7 +1657,7 @@ export default function App() {
                 <X className="w-5 h-5 text-slate-400" />
               </button>
             </div>
-            <div className="flex-1 overflow-y-auto p-6">
+            <div className="flex-1 overflow-y-auto p-6 min-h-[400px]">
               <AlertsDashboard 
                 sectors={sectors} 
                 onClose={() => setShowAlerts(false)}

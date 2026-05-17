@@ -1,0 +1,5 @@
+# Allow Google OAuth and remove strict CSP/COOP headers
+/*
+  Content-Security-Policy: frame-ancestors 'self' https://accounts.google.com https://*.googleapis.com; default-src 'self' 'unsafe-inline' 'unsafe-eval' https: data: blob:; script-src 'self' 'unsafe-inline' 'unsafe-eval' https: data: blob: https://accounts.google.com https://*.googleapis.com https://*.gstatic.com; style-src 'self' 'unsafe-inline' https:; img-src 'self' data: blob: https:; connect-src 'self' https: wss:; font-src 'self' data: https:; media-src 'self' https: data: blob:;
+  Cross-Origin-Opener-Policy: unsafe-none
+  Cross-Origin-Embedder-Policy: unsafe-none

@@ -164,6 +164,28 @@ async def delete_user_camera_endpoint(
     return {"ok": True}
 
 
+@router.post("/user/cameras/{camera_id}/ml-config")
+async def save_camera_ml_config(
+    camera_id: str,
+    ml_config: dict,
+    user_id: int = Depends(get_current_user)
+):
+    """Save ML configuration for a camera"""
+    conn = db_users.get_connection()
+    cursor = conn.cursor()
+    
+    cursor.execute('''
+        UPDATE user_cameras
+        SET ml_config = ?
+        WHERE id = ? AND user_id = ?
+    ''', (ml_config.get('ml_config'), camera_id, user_id))
+    
+    conn.commit()
+    conn.close()
+    
+    return {"ok": True}
+
+
 @router.post("/verify-access-code")
 async def verify_access_code(request: AccessCodeRequest, admin_email: Optional[str] = None):
     """Verify access code for app access (skips for admin email)"""

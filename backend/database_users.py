@@ -69,6 +69,12 @@ def init_user_tables():
     if 'is_admin' not in columns:
         cursor.execute("ALTER TABLE access_codes ADD COLUMN is_admin INTEGER DEFAULT 0")
 
+    # Add ml_config column to user_cameras if it doesn't exist (migration)
+    cursor.execute("PRAGMA table_info(user_cameras)")
+    columns = [col[1] for col in cursor.fetchall()]
+    if 'ml_config' not in columns:
+        cursor.execute("ALTER TABLE user_cameras ADD COLUMN ml_config TEXT")
+
     # User-specific cameras
     cursor.execute('''
         CREATE TABLE IF NOT EXISTS user_cameras (
@@ -251,8 +257,8 @@ def save_user_camera(user_id: int, camera: Dict) -> Dict:
     cursor = conn.cursor()
     
     cursor.execute('''
-        INSERT INTO user_cameras (id, user_id, name, url, status, module, type, resolution, fps)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+        INSERT INTO user_cameras (id, user_id, name, url, status, module, type, resolution, fps, ml_config)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         ON CONFLICT(id, user_id) DO UPDATE SET
             name = excluded.name,
             url = excluded.url,
@@ -260,17 +266,19 @@ def save_user_camera(user_id: int, camera: Dict) -> Dict:
             module = excluded.module,
             type = excluded.type,
             resolution = excluded.resolution,
-            fps = excluded.fps
+            fps = excluded.fps,
+            ml_config = excluded.ml_config
     ''', (
-        camera['id'],
+        camera.get('id'),
         user_id,
-        camera['name'],
-        camera.get('url', ''),
+        camera.get('name'),
+        camera.get('url'),
         camera.get('status', 'offline'),
         camera.get('module', 'retail'),
         camera.get('type', 'ip'),
         camera.get('resolution', '1920x1080'),
-        camera.get('fps', 30)
+        camera.get('fps', 30),
+        camera.get('ml_config')
     ))
     
     conn.commit()

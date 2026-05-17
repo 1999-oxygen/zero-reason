@@ -5,7 +5,7 @@ import {
   Activity, Settings, Users, ArrowRight, Map, HeartPulse,
   BrainCircuit, LayoutDashboard, Fingerprint, DoorOpen, Coffee,
   Sparkles, X, Loader2, PlayCircle, Film, Save, Camera, Plus, Trash2, Eye,
-  Wine, Music, Shield
+  Wine, Music, Shield, MessageCircle
 } from 'lucide-react';
 import { VideoPlayer } from './components/VideoRecorder';
 import { CameraViewer, CameraGridView } from './components/CameraViewer';
@@ -15,6 +15,7 @@ import LiquorStoreDashboard from './components/LiquorStoreDashboard';
 import GoogleAuth from './components/GoogleAuth';
 import AccessCodeGate from './components/AccessCodeGate';
 import AdminPanel from './components/AdminPanel';
+import UserMessaging from './components/UserMessaging';
 import posService from './services/posIntegration';
 import cameraService from './services/cameraIntegration';
 import aiDetectionService from './services/aiDetection';
@@ -98,6 +99,11 @@ export default function App() {
   // Admin State
   const [isAdmin, setIsAdmin] = useState(false);
 
+  // Alerts and Messaging State
+  const [showAlerts, setShowAlerts] = useState(false);
+  const [showMessaging, setShowMessaging] = useState(false);
+  const [unreadAlertCount, setUnreadAlertCount] = useState(0);
+
   // Check if access code is already verified in session
   useEffect(() => {
     const verified = sessionStorage.getItem('access_verified');
@@ -140,6 +146,23 @@ export default function App() {
     setAccessVerified(true);
     sessionStorage.setItem('access_verified', 'true');
   };
+
+  // Load unread alert count
+  useEffect(() => {
+    const loadUnreadAlerts = () => {
+      const stored = localStorage.getItem('aiAlerts');
+      if (stored) {
+        const alerts = JSON.parse(stored);
+        const unread = alerts.filter(a => !a.read).length;
+        setUnreadAlertCount(unread);
+      }
+    };
+
+    loadUnreadAlerts();
+    // Update every 10 seconds
+    const interval = setInterval(loadUnreadAlerts, 10000);
+    return () => clearInterval(interval);
+  }, []);
 
   // Camera Configuration State
   const [cameras, setCameras] = useState([]);
@@ -805,12 +828,23 @@ export default function App() {
               Generate AI Shift Report
             </button>
 
-            <button className="relative p-2 text-slate-400 hover:text-slate-200">
+            <button 
+              onClick={() => setShowAlerts(true)}
+              className="relative p-2 text-slate-400 hover:text-slate-200 transition-colors"
+              title="View Alerts"
+            >
               <Bell className="w-5 h-5" />
-              <span className="absolute top-1.5 right-1.5 w-2 h-2 bg-red-500 rounded-full animate-pulse"></span>
+              {unreadAlertCount > 0 && (
+                <>
+                  <span className="absolute top-1.5 right-1.5 w-2 h-2 bg-red-500 rounded-full animate-pulse"></span>
+                  <span className="absolute -top-1 -right-1 bg-red-500 text-white text-[10px] font-bold rounded-full w-4 h-4 flex items-center justify-center">
+                    {unreadAlertCount > 9 ? '9+' : unreadAlertCount}
+                  </span>
+                </>
+              )}
             </button>
             <GoogleAuth onAuthChange={handleAuthChange} />
-            {isAdmin && (
+            {isAdmin ? (
               <button
                 onClick={() => setShowAdminPanel(true)}
                 className="flex items-center gap-2 px-3 py-1.5 bg-slate-800 hover:bg-slate-700 rounded-lg border border-slate-700 transition-colors"
@@ -818,6 +852,15 @@ export default function App() {
               >
                 <Shield className="w-4 h-4 text-blue-400" />
                 <span className="text-sm text-white">Admin</span>
+              </button>
+            ) : isAuthenticated && (
+              <button
+                onClick={() => setShowMessaging(true)}
+                className="flex items-center gap-2 px-3 py-1.5 bg-blue-500/10 hover:bg-blue-500/20 text-blue-400 rounded-lg border border-blue-500/30 transition-colors"
+                title="Contact Admin"
+              >
+                <MessageCircle className="w-4 h-4" />
+                <span className="text-sm">Contact Admin</span>
               </button>
             )}
           </div>
@@ -1587,6 +1630,37 @@ export default function App() {
             </div>
           </div>
         </div>
+      )}
+
+      {/* Alerts Dashboard Modal */}
+      {showAlerts && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <div className="bg-slate-900 rounded-2xl border border-slate-800 w-full max-w-6xl max-h-[90vh] overflow-hidden">
+            <div className="flex items-center justify-between p-6 border-b border-slate-800">
+              <h2 className="text-xl font-bold text-white">Alerts Dashboard</h2>
+              <button
+                onClick={() => setShowAlerts(false)}
+                className="p-2 hover:bg-slate-800 rounded-lg transition-colors"
+              >
+                <X className="w-5 h-5 text-slate-400" />
+              </button>
+            </div>
+            <div className="overflow-y-auto max-h-[calc(90vh-80px)] p-6">
+              <AlertsDashboard 
+                sectors={sectors} 
+                onClose={() => setShowAlerts(false)}
+              />
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* User Messaging Modal */}
+      {showMessaging && (
+        <UserMessaging 
+          isAdmin={isAdmin}
+          onClose={() => setShowMessaging(false)}
+        />
       )}
       </div>
     </>

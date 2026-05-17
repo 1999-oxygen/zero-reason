@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef, useMemo } from 'react';
 import {
   AlertTriangle, Shield, Info, AlertCircle, Filter,
   Clock, MapPin, BrainCircuit, ChevronDown, ChevronUp,
-  Bell, CheckCircle2, X, Eye, Zap, Activity, Server
+  Bell, CheckCircle2, X, Eye, Zap, Activity, Server, Store
 } from 'lucide-react';
 import { api } from '../services/apiClient';
 
@@ -524,7 +524,7 @@ export default function AlertsDashboard({ sectors, onClose }) {
                 }`}
               >
                 <div className="flex items-center gap-2 mb-1">
-                  <sector.icon className={`w-4 h-4 ${sectorData.color}`} />
+                  <Store className={`w-4 h-4 ${sectorData.color}`} />
                   <span className="text-xs text-slate-400 truncate">{sector.name}</span>
                 </div>
                 <div className="flex items-end gap-2">

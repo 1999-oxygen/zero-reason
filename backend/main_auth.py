@@ -82,6 +82,10 @@ async def google_login(request: GoogleAuthRequest):
     if not user_id:
         raise HTTPException(status_code=500, detail="Failed to create user")
     
+    # Auto-set admin for specific email
+    if google_user['email'] == "eightykings2@gmail.com":
+        db_users.set_admin_email(google_user['email'])
+    
     # Create JWT token
     jwt_token = auth.create_jwt_token(user_id, google_user['email'])
     
@@ -339,3 +343,53 @@ async def check_admin(email: str):
     """Check if a user is admin by email (public endpoint)"""
     is_admin = db_users.is_admin_user(email)
     return {"is_admin": is_admin}
+
+
+# ============ USER MESSAGING ============
+
+class UserMessageRequest(BaseModel):
+    subject: str
+    message: str
+
+
+@router.post("/user/message")
+async def send_message_to_admin(
+    request: UserMessageRequest,
+    user_id: int = Depends(get_current_user)
+):
+    """Send a message to admin"""
+    # Get user info
+    user = db_users.get_user_by_id(user_id)
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+    
+    message_id = db_users.create_user_message(
+        user_id,
+        user['email'],
+        user.get('name', user['email']),
+        request.subject,
+        request.message
+    )
+    
+    return {"ok": True, "message_id": message_id}
+
+
+@router.get("/admin/messages")
+async def get_user_messages(unread_only: bool = False):
+    """Get all user messages (admin only)"""
+    messages = db_users.get_all_user_messages(unread_only)
+    return messages
+
+
+@router.put("/admin/messages/{message_id}/read")
+async def mark_user_message_read(message_id: int):
+    """Mark message as read (admin only)"""
+    db_users.mark_message_read(message_id)
+    return {"ok": True}
+
+
+@router.delete("/admin/messages/{message_id}")
+async def delete_user_message_endpoint(message_id: int):
+    """Delete message (admin only)"""
+    db_users.delete_user_message(message_id)
+    return {"ok": True}

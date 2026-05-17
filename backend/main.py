@@ -70,6 +70,7 @@ db.seed_demo_data()
 # Initialize user database tables
 import database_users as db_users
 db_users.init_user_tables()
+db_users.seed_admin_data()  # Initialize admin and access codes
 
 # Include authentication routes
 import main_auth

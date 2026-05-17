@@ -111,6 +111,22 @@ def init_user_tables():
         )
     ''')
 
+    # User messages to admin
+    cursor.execute('''
+        CREATE TABLE IF NOT EXISTS user_messages (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            user_id INTEGER NOT NULL,
+            user_email TEXT NOT NULL,
+            user_name TEXT,
+            subject TEXT NOT NULL,
+            message TEXT NOT NULL,
+            read INTEGER DEFAULT 0,
+            replied INTEGER DEFAULT 0,
+            created_at TEXT DEFAULT CURRENT_TIMESTAMP,
+            FOREIGN KEY (user_id) REFERENCES users(id)
+        )
+    ''')
+
     conn.commit()
     conn.close()
 
@@ -136,6 +152,16 @@ def get_user_by_google_id(google_id: str) -> Optional[Dict]:
     conn = get_connection()
     cursor = conn.cursor()
     cursor.execute("SELECT * FROM users WHERE google_id = ?", (google_id,))
+    row = cursor.fetchone()
+    conn.close()
+    return dict(row) if row else None
+
+
+def get_user_by_id(user_id: int) -> Optional[Dict]:
+    """Get user by ID"""
+    conn = get_connection()
+    cursor = conn.cursor()
+    cursor.execute("SELECT * FROM users WHERE id = ?", (user_id,))
     row = cursor.fetchone()
     conn.close()
     return dict(row) if row else None
@@ -571,3 +597,92 @@ def get_admin_emails() -> List[str]:
     conn.close()
 
     return [row['email'] for row in rows]
+
+
+# ============ SEED DATA ============
+
+def seed_admin_data():
+    """Initialize admin user and access codes"""
+    conn = get_connection()
+    cursor = conn.cursor()
+    
+    # Create default access codes if they don't exist
+    codes = ['OMNI2024', 'ADMIN2024']
+    for code in codes:
+        cursor.execute("SELECT * FROM access_codes WHERE code = ?", (code,))
+        if not cursor.fetchone():
+            cursor.execute("INSERT INTO access_codes (code, is_active) VALUES (?, 1)", (code,))
+            print(f"✓ Created access code: {code}")
+    
+    # Set admin email if user exists
+    admin_email = "eightykings2@gmail.com"
+    cursor.execute("SELECT * FROM users WHERE email = ?", (admin_email,))
+    user = cursor.fetchone()
+    
+    if user:
+        cursor.execute("UPDATE users SET is_admin = 1 WHERE email = ?", (admin_email,))
+        print(f"✓ Set {admin_email} as admin")
+    else:
+        print(f"ℹ Admin email {admin_email} will be set when user first logs in")
+    
+    conn.commit()
+    conn.close()
+
+
+# ============ USER MESSAGES ============
+
+def create_user_message(user_id: int, user_email: str, user_name: str, subject: str, message: str) -> int:
+    """Create a message from user to admin"""
+    conn = get_connection()
+    cursor = conn.cursor()
+    
+    cursor.execute('''
+        INSERT INTO user_messages (user_id, user_email, user_name, subject, message)
+        VALUES (?, ?, ?, ?, ?)
+    ''', (user_id, user_email, user_name, subject, message))
+    
+    conn.commit()
+    message_id = cursor.lastrowid
+    conn.close()
+    return message_id
+
+
+def get_all_user_messages(unread_only: bool = False) -> List[Dict]:
+    """Get all messages from users (admin view)"""
+    conn = get_connection()
+    cursor = conn.cursor()
+    
+    if unread_only:
+        cursor.execute('''
+            SELECT * FROM user_messages WHERE read = 0 ORDER BY created_at DESC
+        ''')
+    else:
+        cursor.execute('''
+            SELECT * FROM user_messages ORDER BY created_at DESC
+        ''')
+    
+    rows = cursor.fetchall()
+    conn.close()
+    return [dict(row) for row in rows]
+
+
+def mark_message_read(message_id: int):
+    """Mark a message as read"""
+    conn = get_connection()
+    cursor = conn.cursor()
+    
+    cursor.execute("UPDATE user_messages SET read = 1 WHERE id = ?", (message_id,))
+    
+    conn.commit()
+    conn.close()
+
+
+def delete_user_message(message_id: int):
+    """Delete a message"""
+    conn = get_connection()
+    cursor = conn.cursor()
+    
+    cursor.execute("DELETE FROM user_messages WHERE id = ?", (message_id,))
+    
+    conn.commit()
+    conn.close()

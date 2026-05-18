@@ -3,6 +3,7 @@ Google OAuth Authentication for OmniVision
 Handles user authentication and session management
 """
 import jwt
+import sqlite3
 import time
 from typing import Optional, Dict
 from google.oauth2 import id_token
@@ -69,50 +70,62 @@ def verify_jwt_token(token: str) -> Optional[Dict]:
         return None
 
 
-def get_or_create_user(google_user_info: Dict) -> Optional[int]:
+def get_or_create_user(google_user_info: dict) -> int:
     """
-    Get existing user or create new one from Google info
-    Returns user_id
+    Get existing user by Google ID or create new user
+    Returns user ID
     """
-    conn = db.get_connection()
-    cursor = conn.cursor()
-
-    # Check if user exists
-    cursor.execute(
-        "SELECT id FROM users WHERE google_id = ?",
-        (google_user_info['google_id'],)
-    )
-    row = cursor.fetchone()
-
-    if row:
-        user_id = row['id']
-        # Update last login
-        cursor.execute(
-            "UPDATE users SET last_login = CURRENT_TIMESTAMP WHERE id = ?",
-            (user_id,)
-        )
-        conn.commit()
-        conn.close()
-        return user_id
-    else:
-        # Create new user
-        cursor.execute('''
-            INSERT INTO users (google_id, email, name, picture)
-            VALUES (?, ?, ?, ?)
-        ''', (
-            google_user_info['google_id'],
-            google_user_info['email'],
-            google_user_info['name'],
-            google_user_info['picture']
-        ))
-        conn.commit()
-        user_id = cursor.lastrowid
-        conn.close()
-        
-        # Initialize default sector configs for new user
-        initialize_user_sectors(user_id)
-        
-        return user_id
+    max_retries = 3
+    retry_delay = 0.5
+    
+    for attempt in range(max_retries):
+        try:
+            conn = db.get_connection()
+            cursor = conn.cursor()
+            
+            # Check if user exists
+            cursor.execute(
+                "SELECT id FROM users WHERE google_id = ?",
+                (google_user_info['google_id'],)
+            )
+            existing = cursor.fetchone()
+            
+            if existing:
+                user_id = existing['id']
+                # Update last login
+                cursor.execute(
+                    "UPDATE users SET last_login = CURRENT_TIMESTAMP WHERE id = ?",
+                    (user_id,)
+                )
+                conn.commit()
+                conn.close()
+                return user_id
+            else:
+                # Create new user
+                cursor.execute('''
+                    INSERT INTO users (google_id, email, name, picture)
+                    VALUES (?, ?, ?, ?)
+                ''', (
+                    google_user_info['google_id'],
+                    google_user_info['email'],
+                    google_user_info['name'],
+                    google_user_info['picture']
+                ))
+                conn.commit()
+                user_id = cursor.lastrowid
+                conn.close()
+                
+                # Initialize default sector configs for new user
+                initialize_user_sectors(user_id)
+                
+                return user_id
+        except sqlite3.OperationalError as e:
+            if "database is locked" in str(e) and attempt < max_retries - 1:
+                time.sleep(retry_delay)
+                retry_delay *= 2
+                continue
+            else:
+                raise e
 
 
 def initialize_user_sectors(user_id: int):
